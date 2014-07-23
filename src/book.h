@@ -3,6 +3,7 @@
 
 #include <ctime>
 
+#include <map>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -19,9 +20,9 @@ class BookCopy
     BookCopy(const BookID &id, int volume, int location);
 
     // only when the status is ON_SHELF
-    bool Borrow(const UserID &reader_id);
+    bool Borrow(const UserID *user);
     // only when the status is LENT
-    bool Request(const UserID &reader_id);
+    bool Request(const UserID &user_id);
     bool Return();
 
     void Update();  // should be done every day
@@ -64,9 +65,10 @@ class Book
 
     static const std::vector<std::string> kLocations;
 
+    void Update();  // update all the copies
 
     // accessors
-    const std::string & call_number() const { return call_number_; }
+    const CallNum & call_number() const { return call_number_; }
 
     const std::string & title() const { return title_; }
     const std::string & author() const { return author_; }
@@ -77,7 +79,7 @@ class Book
     const std::vector<BookCopy> & copies() const { return copies_; }
 
  private:
-    std::string call_number_;
+    CallNum call_number_;
 
     std::string title_;
     std::string author_;
@@ -87,6 +89,8 @@ class Book
 
     std::vector<BookCopy> copies_;
 };
+
+typedef std::map<CallNum, Book> BookCollection;
 
 // display a book
 std::ostream & operator<<(std::ostream &os, const Book &book);

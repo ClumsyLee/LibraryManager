@@ -6,9 +6,11 @@
 
 namespace library_manager {
 
+typedef std::string CallNum;
 typedef std::string BookID;
 typedef std::string UserID;
 typedef std::string Password;
+
 
 }  // namespace library_manager
 

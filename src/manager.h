@@ -1,11 +1,13 @@
 #ifndef LM_MANAGER_H_
 #define LM_MANAGER_H_
 
-#include <memory>
+#include <map>
+#include <sstream>
 
 #include "book.h"
 #include "common.h"
 #include "interface.h"
+#include "io.h"
 #include "user.h"
 
 namespace library_manager {
@@ -15,28 +17,43 @@ class Manager
  public:
     Manager();
 
-    void Login(User *user);
+    void Welcome() const;
+
+    void Login();
     void Logout();
 
-    bool Borrow(const BookID &id);
-    void Return(const BookID &id);
-    bool Request(const BookID &id);
+    // access level 0
+    void SearchBook();
 
-    // Book management
-    bool AddBook();
-    bool AddCopy();
-    bool DeleteBook();
+    // access level 1
+    void Borrow();
+    void Return();
 
-    // User Management
-    bool AddUser(const UserID &name, const Password &password);
-    bool DeleteUser(const UserID &id);
+    // access level 2
+    void Request();
+
+    // access level 3
+    void AddBook();
+    void AddCopy();
+    void AddUser();
+
+    // access level 4
+    void DeleteBook();
+    void DeleteCopy();
+    void DeleteUser();
 
  private:
-    User *user_;
-    Interface *interface_;
+    bool FeedStream(const std::string &prompt);
+    bool ReadLine(const std::string &prompt, std::string &line) const;
 
-    std::unique_ptr<User> LoadUser(const UserID &name);
-    bool SaveUser(const User *user);
+    bool CheckAccessLevel(int min_level) const;
+
+    std::unique_ptr<User> user_;
+    Interface *interface_;
+    std::istringstream iss_;
+    FileIO file_io_;
+
+    BookCollection books_;
 };
 
 

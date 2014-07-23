@@ -1,6 +1,9 @@
 #ifndef LM_INTERFACE_H_
 #define LM_INTERFACE_H_
 
+#include <istream>
+#include <string>
+
 namespace library_manager {
 
 class Interface
@@ -9,7 +12,7 @@ class Interface
     Interface() = default;
     virtual ~Interface() = default;
 
-    virtual 
+    virtual bool ReadLine(const std::string &prompt, std::string &line);
 };
 
 }  // namespace library_manager
