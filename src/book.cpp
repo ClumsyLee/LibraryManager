@@ -42,18 +42,29 @@ int DaysDiff(std::time_t end, std::time_t begin)
 
 namespace library_manager {
 
-const std::vector<int> kShortNotifyDays = {
+const std::vector<std::string> kLocations = {
+    "逸夫馆新书及常用书阅览室"
+};
+
+void ShowLocations(std::ostream &os)
+{
+    int size = kLocations.size();
+    for (int i = 0; i < size; i++)
+    {
+        os.width(2);
+        os << i << ": " << kLocations[i] << std::endl;
+    }
+}
+
+
+const std::vector<int> BookCopy::kShortNotifyDays = {
     -1, 1, 3, 10, 40, 1039, 2038
 };
 
-const std::vector<int> kGeneralNotifyDays = {
+const std::vector<int> BookCopy::kGeneralNotifyDays = {
     1, 3, 10, 100, 365, 1364, 2363
 };
 
-
-const std::vector<std::string> Book::kLocations = {
-    "逸夫馆新书及常用书阅览室"
-};
 
 BookCopy::BookCopy(const BookID &id, int volume, int location,
                    BorrowType borrow_type)

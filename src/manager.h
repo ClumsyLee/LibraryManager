@@ -5,6 +5,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "book.h"
 #include "common.h"
@@ -20,6 +21,7 @@ class Manager
     Manager(const std::string &book_folder, const std::string &user_folder);
 
     void Welcome() const;
+    void GoodBye() const;
 
     void Login();
     void Logout();
@@ -30,7 +32,7 @@ class Manager
     // access level 1
     void Borrow();
     void Return();
-    void ShowStatus();
+    void ShowStatus() const;
 
     // access level 2
     void Request();
@@ -46,14 +48,18 @@ class Manager
     void DeleteUser();
 
  private:
+    std::pair<Book &, BookCopy &> FindBook(const BookID &book_id);
+    std::pair<const Book &,
+              const BookCopy &> FindBook(const BookID &book_id) const;
+
+    void ShowBookCopy(const BookID &book_id) const;
+
     bool FeedStream(const std::string &prompt);
-    bool ReadLine(const std::string &prompt, std::string &line) const;
 
     bool CheckAccessLevel(int min_level) const;
 
     // status
-    bool has_login_;
-    UserID user_now_;
+    User *user_now_;
 
     // for implement
     std::istringstream iss_;

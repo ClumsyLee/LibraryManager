@@ -29,7 +29,7 @@ class User
     virtual bool Load(std::istream &is);
 
     // info about borrowing
-    virtual int assess_level() const { return 0; }
+    virtual int access_level() const { return 0; }
 
     virtual int max_borrow() const { return 30; }
     virtual int max_request() const { return 3; }

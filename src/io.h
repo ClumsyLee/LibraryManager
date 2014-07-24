@@ -11,6 +11,8 @@ namespace library_manager {
 
 // input function
 bool ReadLine(const std::string &prompt, std::string &line);
+bool ReadParagraph(const std::string &prompt, std::string &line);
+bool YesOrNo(const std::string &prompt);
 
 class FileBasic
 {

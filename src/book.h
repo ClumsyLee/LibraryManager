@@ -16,6 +16,9 @@ namespace library_manager {
 enum class BookStatus { ON_SHELF, LENT, AT_LOAN_DESK, LOST };
 enum class BorrowType { GENERAL, SHORT };
 
+extern const std::vector<std::string> kLocations;
+void ShowLocations(std::ostream &os);
+
 class BookCopy
 {
  public:
@@ -79,9 +82,9 @@ class BookCopy
 class Book
 {
  public:
-    Book();
-
-    static const std::vector<std::string> kLocations;
+    Book(const CallNum &call_number, const std::string &title,
+         const std::string &author,  const std::string &imprint,
+         const std::string &abstract, const std::string &isbn);
 
     void Update();  // update all the copies
 
@@ -94,6 +97,7 @@ class Book
     const std::string & abstract() const { return abstract_; }
     const std::string & isbn() const { return isbn_; }
 
+    std::vector<BookCopy> & copies() { return copies_; }
     const std::vector<BookCopy> & copies() const { return copies_; }
 
  private:

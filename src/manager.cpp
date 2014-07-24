@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 #include "manager.h"
 
@@ -9,8 +11,7 @@ Manager::Manager() : Manager("books", "users")
 }
 
 Manager::Manager(const std::string &book_folder, const std::string &user_folder)
-        : has_login_(false),
-          user_now_(),
+        : user_now_(nullptr),
 
           iss_(),
           file_io_(book_folder, user_folder),
@@ -26,28 +27,41 @@ void Manager::Welcome() const
 {
 }
 
+void Manager::GoodBye() const
+{
+}
+
 void Manager::Login()
 {
     using std::cout;
 
-    std::string user_id;
-    Password password;
-
-    FeedStream("请输入用户名: ");
-    if (!(iss_ >> user_id))  // EOF
-        return;
-    user_ = file_io_.Load(user_id);
-
-    if (!user_)
+    if (user_now_)
     {
-        cout << user_id << ": 不存在该用户名\n";
-        user_.reset(nullptr);
+        cout << "您已经登录\n";
         return;
     }
 
-    ReadLine("请输入密码: ", password);
-    if (user_->VerifyPassword(password))
+    std::string user_id;
+    Password password;
+
+    // get id
+    FeedStream("请输入用户名（回车以退出）: ");
+    if (!(iss_ >> user_id))  // EOF or blank line
+        return;
+
+    auto user_iter = users_.find(user_id);
+    if (user_iter == users_.end())
     {
+        cout << user_id << ": 不存在该用户名\n";
+        return;
+    }
+
+    // get password
+    ReadLine("请输入密码: ", password);
+    if (user_iter->second->VerifyPassword(password))
+    {
+        // login
+        user_now_ = user_iter->second.get();
         Welcome();
     }
     else
@@ -58,13 +72,16 @@ void Manager::Login()
 
 void Manager::Logout()
 {
-    user_.reset(nullptr);
+    if (user_now_)
+    {
+        GoodBye();
+        user_now_ = nullptr;
+    }
 }
 
 // access level 0
 void SearchBook()
 {
-
 }
 
 // access level 1
@@ -78,8 +95,29 @@ void Manager::Borrow()
         return;
     }
 
+    BookID book_id;
+    FeedStream("请输入要借阅的馆藏的条形码（回车以退出）: ");
+    if (!(iss_ >> book_id))  // EOF or blank line
+        return;
 
+    try
+    {
+        auto book_pair = FindBook(book_id);
 
+        if (book_pair.second.Borrow(user_now_))
+        {
+            cout << "借书成功\n";
+            ShowBookCopy(book_id);
+        }
+        else
+        {
+            cout << "借书失败\n";
+        }
+    }
+    catch (const std::out_of_range &oor)
+    {
+        cout << "无法找到条形码为 " << book_id << " 的图书\n";
+    }
 }
 
 void Manager::Return()
@@ -92,10 +130,31 @@ void Manager::Return()
         return;
     }
 
+    BookID book_id;
+    FeedStream("请输入要归还的馆藏的条形码（回车以退出）: ");
+    if (!(iss_ >> book_id))  // EOF or blank line
+        return;
 
+    try
+    {
+        auto book_pair = FindBook(book_id);
+
+        if (book_pair.second.Return(user_now_))
+        {
+            cout << "还书成功\n";
+        }
+        else
+        {
+            cout << "还书失败\n";
+        }
+    }
+    catch (const std::out_of_range &oor)
+    {
+        cout << "无法找到条形码为 " << book_id << " 的图书\n";
+    }
 }
 
-void Manager::ShowStatus()
+void Manager::ShowStatus() const
 {
     using std::cout;
 
@@ -105,19 +164,18 @@ void Manager::ShowStatus()
         return;
     }
 
-    if (user_->holding().empty())
+    // show holding books
+    cout << "您当前共借阅了" << user_now_->holding().size() << "本馆藏\n";
+    for (const BookID &book_id : user_now_->holding())
     {
-        std::cout << "您当前没有借出任何馆藏\n";
+        ShowBookCopy(book_id);
     }
-    else
-    {
-        for (const BookID &book_id : user_->holding())
-        {
-            try
-            {
 
-            }
-        }
+    // show request status
+    cout << "\n您当前共预约了" << user_now_->requested().size() << "本馆藏\n";
+    for (const BookID &book_id : user_now_->requested())
+    {
+        ShowBookCopy(book_id);
     }
 }
 
@@ -133,6 +191,29 @@ void Manager::Request()
         return;
     }
 
+    BookID book_id;
+    FeedStream("请输入要预约的馆藏的条形码（回车以退出）: ");
+    if (!(iss_ >> book_id))  // EOF or blank line
+        return;
+
+    try
+    {
+        auto book_pair = FindBook(book_id);
+
+        if (book_pair.second.Request(user_now_))
+        {
+            cout << "预约成功\n";
+            ShowBookCopy(book_id);
+        }
+        else
+        {
+            cout << "预约失败\n";
+        }
+    }
+    catch (const std::out_of_range &oor)
+    {
+        cout << "无法找到条形码为 " << book_id << " 的图书\n";
+    }
 }
 
 
@@ -147,7 +228,46 @@ void Manager::AddBook()
         return;
     }
 
+    cout << "开始录入新书目信息\n";
 
+    CallNum call_number;
+    while (true)
+    {
+        FeedStream("请输入索书号（回车以退出）: ");
+        if (!(iss_ >> call_number))  // EOF or blank line
+            return;
+        if (books_.find(call_number) != books_.end())
+        {
+            cout << "索书号 " << call_number << " 已被占用\n";
+        }
+    }
+
+    std::string title;
+    if (!ReadLine("请输入题名: ", title))  // EOF
+        return;
+
+    std::string author;
+    if (!ReadLine("请输入作者: ", author))  // EOF
+        return;
+
+    std::string imprint;
+    if (!ReadLine("请输入出版社: ", imprint))  // EOF
+        return;
+
+    std::string abstract;
+    if (!ReadParagraph("请输入摘要（以空行结束）: ", abstract))  // EOF
+        return;
+
+    std::string isbn;
+    if (!ReadLine("请输入ISBN: ", isbn))  // EOF
+        return;
+
+    Book new_book(call_number, title, author, imprint, abstract, isbn);
+
+    cout << "您输入的新书目信息如下:\n\n"
+         << new_book << std::endl;
+    if (YesOrNo("\n要添加此书目吗？(y/n): "))
+        books_.emplace(call_number, new_book);
 }
 
 void Manager::AddCopy()
@@ -159,6 +279,9 @@ void Manager::AddCopy()
         cout << "对不起，您没有增添馆藏的权限\n";
         return;
     }
+
+    cout << "开始录入新馆藏信息\n";
+    
 }
 
 void Manager::AddUser()
@@ -209,13 +332,61 @@ void Manager::DeleteUser()
 
 }
 
+std::pair<Book &, BookCopy &> Manager::FindBook(const BookID &book_id)
+{
+    Book &book = books_.at(book_id_map_.at(book_id));
+
+    auto copy_iter = std::find(book.copies().begin(), book.copies().end(),
+                               book_id);
+    if (copy_iter == book.copies().end())  // should be here, not scientific
+        throw std::out_of_range("在对应书目下找不到该副本");
+
+    return {book, *copy_iter};
+}
+
+
+std::pair<const Book &,
+          const BookCopy &> Manager::FindBook(const BookID &book_id) const
+{
+    const Book &book = books_.at(book_id_map_.at(book_id));
+
+    auto copy_iter = std::find(book.copies().begin(), book.copies().end(),
+                               book_id);
+    if (copy_iter == book.copies().end())  // should be here, not scientific
+        throw std::out_of_range("在对应书目下找不到该副本");
+
+    return {book, *copy_iter};
+}
+
+void Manager::ShowBookCopy(const BookID &book_id) const
+try
+{
+    static std::string separator = std::string('=', 79);
+    static std::string sub_separator('.', 79);
+
+    using std::cout;
+    using std::endl;
+
+    auto book_pair = FindBook(book_id);
+    cout << separator << endl
+         << book_pair.first.title() << endl
+         << sub_separator << endl
+         << "条形码: " << book_id << "        "
+         << book_pair.second.StatusStr() << "        "
+         << "索书号: " << book_pair.first.call_number() << endl;
+}
+catch (const std::out_of_range &oor)
+{
+    std::cerr << "检索 " << book_id << "失败: "
+              << oor.what() << std::endl;
+}
 
 
 
 bool Manager::CheckAccessLevel(int min_level) const
 {
-    int level = user_ ?
-                user_->access_level() :
+    int level = user_now_ ?
+                user_now_->access_level() :
                 0;
 
     return level >= min_level;
