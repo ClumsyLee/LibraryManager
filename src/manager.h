@@ -2,11 +2,12 @@
 #define LM_MANAGER_H_
 
 #include <map>
+#include <memory>
 #include <sstream>
+#include <string>
 
 #include "book.h"
 #include "common.h"
-#include "interface.h"
 #include "io.h"
 #include "user.h"
 
@@ -16,6 +17,7 @@ class Manager
 {
  public:
     Manager();
+    Manager(const std::string &book_folder, const std::string &user_folder);
 
     void Welcome() const;
 
@@ -49,13 +51,18 @@ class Manager
 
     bool CheckAccessLevel(int min_level) const;
 
-    std::unique_ptr<User> user_;
-    Interface *interface_;
+    // status
+    bool has_login_;
+    UserID user_now_;
+
+    // for implement
     std::istringstream iss_;
     FileIO file_io_;
 
-    BookCollection books_;
-    BookIDMap id_map_;
+    // datas
+    std::map<CallNum, Book> books_;
+    std::map<BookID, CallNum> book_id_map_;
+    std::map<UserID, std::shared_ptr<User>> users_;
 };
 
 

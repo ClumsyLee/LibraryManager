@@ -108,9 +108,6 @@ class Book
     std::vector<BookCopy> copies_;
 };
 
-typedef std::map<CallNum, Book> BookCollection;
-typedef std::map<BookID, CallNum> BookIDMap;
-
 // display a book
 std::ostream & operator<<(std::ostream &os, const Book &book);
 

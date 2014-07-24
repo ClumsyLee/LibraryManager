@@ -4,9 +4,23 @@
 
 namespace library_manager {
 
-Manager::Manager() : user_(nullptr),
-                     interface_(nullptr),
-                     books_() {}
+Manager::Manager() : Manager("books", "users")
+{
+}
+
+Manager::Manager(const std::string &book_folder, const std::string &user_folder)
+        : has_login_(false),
+          user_now_(),
+
+          iss_(),
+          file_io_(book_folder, user_folder),
+
+          books_(),
+          book_id_map_(),
+          users_()
+{
+    file_io_.Load(books_, book_id_map_, users_);
+}
 
 void Manager::Welcome() const
 {
@@ -101,7 +115,7 @@ void Manager::ShowStatus()
         {
             try
             {
-                
+
             }
         }
     }
