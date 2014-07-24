@@ -45,7 +45,7 @@ void Manager::Login()
     Password password;
 
     // get id
-    FeedStream("请输入用户名（回车以退出）: ");
+    FeedStream("请输入用户名 (回车以退出): ");
     if (!(iss_ >> user_id))  // EOF or blank line
         return;
 
@@ -96,7 +96,7 @@ void Manager::Borrow()
     }
 
     BookID book_id;
-    FeedStream("请输入要借阅的馆藏的条形码（回车以退出）: ");
+    FeedStream("请输入要借阅的馆藏的条形码 (回车以退出): ");
     if (!(iss_ >> book_id))  // EOF or blank line
         return;
 
@@ -131,7 +131,7 @@ void Manager::Return()
     }
 
     BookID book_id;
-    FeedStream("请输入要归还的馆藏的条形码（回车以退出）: ");
+    FeedStream("请输入要归还的馆藏的条形码 (回车以退出): ");
     if (!(iss_ >> book_id))  // EOF or blank line
         return;
 
@@ -192,7 +192,7 @@ void Manager::Request()
     }
 
     BookID book_id;
-    FeedStream("请输入要预约的馆藏的条形码（回车以退出）: ");
+    FeedStream("请输入要预约的馆藏的条形码 (回车以退出): ");
     if (!(iss_ >> book_id))  // EOF or blank line
         return;
 
@@ -233,7 +233,7 @@ void Manager::AddBook()
     CallNum call_number;
     while (true)
     {
-        FeedStream("请输入索书号（回车以退出）: ");
+        FeedStream("请输入索书号 (回车以退出): ");
         if (!(iss_ >> call_number))  // EOF or blank line
             return;
         if (books_.find(call_number) != books_.end())
@@ -255,7 +255,7 @@ void Manager::AddBook()
         return;
 
     std::string abstract;
-    if (!ReadParagraph("请输入摘要（以空行结束）: ", abstract))  // EOF
+    if (!ReadParagraph("请输入摘要 (以空行结束): ", abstract))  // EOF
         return;
 
     std::string isbn;
@@ -266,7 +266,7 @@ void Manager::AddBook()
 
     cout << "您输入的新书目信息如下:\n\n"
          << new_book << std::endl;
-    if (YesOrNo("\n要添加此书目吗？(y/n): "))
+    if (YesOrNo("\n要添加此书目吗? (y/n): "))
         books_.emplace(call_number, new_book);
 }
 
@@ -281,7 +281,79 @@ void Manager::AddCopy()
     }
 
     cout << "开始录入新馆藏信息\n";
-    
+
+    CallNum call_number;
+    std::map<CallNum, Book>::iterator book_iter;
+    while (true)
+    {
+        FeedStream("请输入索书号 (回车以退出): ");
+        if (!(iss_ >> call_number))  // EOF or blank line
+            return;
+        book_iter = books_.find(call_number);
+        if (book_iter == books_.end())
+        {
+            cout << "索书号 " << call_number << " 已被占用\n";
+        }
+    }
+
+    BookID book_id;
+    while (true)
+    {
+        FeedStream("请输入条形码 (回车以退出): ");
+        if (!(iss_ >> book_id))  // EOF or blank line
+            return;
+        if (book_id_map_.find(book_id) != book_id_map_.end())
+        {
+            cout << "条形码 " << book_id << " 已被占用\n";
+        }
+    }
+
+    int volume;
+    FeedStream("请输入卷次 (非数字以退出): ");
+    if (!(iss_ >> volume))  // cannot read number
+        return;
+    if (volume < 0)
+        volume = 0;
+
+    int location;
+    ShowLocations(cout);
+    while (true)
+    {
+        FeedStream("请输入书籍所在位置 (非数字以退出): ");
+        if (!(iss_ >> location))  // cannot read number
+            return;
+        if (location < 0 || location >= kLocations.size())
+        {
+            cout << location << ": 无效的位置编号\n";
+        }
+    }
+
+    int borrow_type;
+    while (true)
+    {
+        FeedStream("请输入馆藏借期类型 (0: 一般, 1: 短期, 非数字以退出): ");
+        if (!(iss_ >> borrow_type))  // cannot read number
+            return;
+        if (borrow_type < 0 || borrow_type >= 1)
+        {
+            cout << borrow_type << ": 无效的借期类型\n";
+        }
+    }
+
+    cout << "您输入的新馆藏信息如下:\n"
+         << "索书号: " << call_number
+                      << " (" << book_iter->second.title() << ")\n"
+         << "条形码: " << book_id
+         << "\n卷次: " << volume
+         << "\n位置: " << kLocations[location]
+         << "\n借期类型: "  << (borrow_type ? "短期\n": "一般\n");
+
+    if (YesOrNo("要添加此馆藏吗? (y/n): "))
+    {
+        BookCopy new_copy(book_id, volume, location,
+                          static_cast<BorrowType>(borrow_type));
+        book_iter->second.copies().push_back(new_copy);
+    }
 }
 
 void Manager::AddUser()

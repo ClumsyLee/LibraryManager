@@ -61,26 +61,6 @@ class UserFactory
     virtual std::unique_ptr<User> Create() = 0;
 };
 
-class Teacher : public User
-{
- public:
-    virtual ~Teacher() = default;
-
-    virtual bool Save() const;
-    virtual bool Load();
-
-
- private:
-
-};
-
-class TeacherFactory : public UserFactory
-{
- public:
-    virtual ~TeacherFactory() = default;
-
-    virtual std::unique_ptr<User> Create();
-};
 
 class Student : public User
 {
