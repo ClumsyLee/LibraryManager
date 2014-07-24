@@ -58,7 +58,7 @@ class UserFactory
  public:
     virtual ~UserFactory() = default;
 
-    virtual std::unique_ptr<User> Create() = 0;
+    virtual std::unique_ptr<User> Create(const UserID &id) = 0;
 };
 
 
@@ -76,7 +76,7 @@ class StudentFactory : public UserFactory
  public:
     virtual ~StudentFactory() = default;
 
-    virtual std::unique_ptr<User> Create();
+    virtual std::unique_ptr<User> Create(const UserID &id);
  private:
 
 };
@@ -93,7 +93,7 @@ class AdministratorFactory : public UserFactory
  public:
     virtual ~AdministratorFactory() = default;
 
-    virtual std::unique_ptr<User> Create();
+    virtual std::unique_ptr<User> Create(const UserID &id);
 
  private:
 

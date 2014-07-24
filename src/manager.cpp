@@ -236,10 +236,10 @@ void Manager::AddBook()
         FeedStream("请输入索书号 (回车以退出): ");
         if (!(iss_ >> call_number))  // EOF or blank line
             return;
-        if (books_.find(call_number) != books_.end())
-        {
-            cout << "索书号 " << call_number << " 已被占用\n";
-        }
+
+        if (books_.find(call_number) == books_.end())
+            break;
+        cout << "索书号 " << call_number << " 已被占用\n";
     }
 
     std::string title;
@@ -289,11 +289,12 @@ void Manager::AddCopy()
         FeedStream("请输入索书号 (回车以退出): ");
         if (!(iss_ >> call_number))  // EOF or blank line
             return;
+
         book_iter = books_.find(call_number);
-        if (book_iter == books_.end())
-        {
-            cout << "索书号 " << call_number << " 已被占用\n";
-        }
+        if (book_iter != books_.end())
+            break;
+
+        cout << "不存在索书号为 " << call_number << " 的书目\n";
     }
 
     BookID book_id;
@@ -302,10 +303,11 @@ void Manager::AddCopy()
         FeedStream("请输入条形码 (回车以退出): ");
         if (!(iss_ >> book_id))  // EOF or blank line
             return;
-        if (book_id_map_.find(book_id) != book_id_map_.end())
-        {
-            cout << "条形码 " << book_id << " 已被占用\n";
-        }
+
+        if (book_id_map_.find(book_id) == book_id_map_.end())
+            break;
+
+        cout << "条形码 " << book_id << " 已被占用\n";
     }
 
     int volume;
@@ -322,10 +324,11 @@ void Manager::AddCopy()
         FeedStream("请输入书籍所在位置 (非数字以退出): ");
         if (!(iss_ >> location))  // cannot read number
             return;
-        if (location < 0 || location >= kLocations.size())
-        {
-            cout << location << ": 无效的位置编号\n";
-        }
+
+        if (location >= 0 && location < kLocations.size())
+            break;
+
+        cout << location << ": 无效的位置编号\n";
     }
 
     int borrow_type;
@@ -334,10 +337,11 @@ void Manager::AddCopy()
         FeedStream("请输入馆藏借期类型 (0: 一般, 1: 短期, 非数字以退出): ");
         if (!(iss_ >> borrow_type))  // cannot read number
             return;
-        if (borrow_type < 0 || borrow_type >= 1)
-        {
-            cout << borrow_type << ": 无效的借期类型\n";
-        }
+
+        if (borrow_type == 0 || borrow_type == 1)
+            break;
+
+        cout << borrow_type << ": 无效的借期类型\n";
     }
 
     cout << "您输入的新馆藏信息如下:\n"
@@ -353,6 +357,8 @@ void Manager::AddCopy()
         BookCopy new_copy(book_id, volume, location,
                           static_cast<BorrowType>(borrow_type));
         book_iter->second.copies().push_back(new_copy);
+        // update id map
+        book_id_map_.emplace(book_id, call_number);
     }
 }
 
@@ -365,6 +371,37 @@ void Manager::AddUser()
         cout << "对不起，您没有新建用户的权限\n";
         return;
     }
+
+    int choice;
+    cout << "0: 管理员, 1: 学生\n";
+    FeedStream("请选择新建用户的类型 (非数字以退出): ");
+    if (!(iss_ >> choice))  // cannot read a choice
+        return;
+    if (choice < 0 || choice >= 2)
+    {
+        cout << "无效的用户类型\n";
+        return;
+    }
+
+    // choose factory
+    std::unique_ptr<UserFactory> factory;
+    if (choice == 0)
+        factory.reset(new AdministratorFactory);
+    else  // choice == 1
+        factory.reset(new StudentFactory);
+
+    // get id
+    UserID user_id;
+    if (ReadLine("请输入用户名: ", user_id))  // EOF
+        return;
+
+    std::shared_ptr<User> new_user = factory->Create(user_id);
+    if (!new_user)  // fail to add
+        return;
+
+    new_user->Display(cout);
+    if (YesOrNo("确定要添加该用户吗? (y/n): "))
+        users_.emplace(user_id, new_user);
 }
 
 // access level 4
@@ -378,6 +415,31 @@ void Manager::DeleteBook()
         return;
     }
 
+    CallNum call_number;
+    std::map<CallNum, Book>::iterator book_iter;
+    while (true)
+    {
+        FeedStream("请输入索书号 (回车以退出): ");
+        if (!(iss_ >> call_number))  // EOF or blank line
+            return;
+
+        book_iter = books_.find(call_number);
+        if (book_iter != books_.end())
+            break;
+
+        cout << "不存在索书号为 " << call_number << " 的书目\n";
+    }
+
+    if (!(book_iter->second.copies().empty()))
+    {
+        cout << "删除失败: 不能删除副本非空的书目\n";
+        return;
+    }
+
+    std::string prompt = std::string("您确定要删除 ") + call_number
+            + " ("  + book_iter->second.title() + ") 吗? (y/n): ";
+    if (YesOrNo(prompt))
+        books_.erase(book_iter);
 }
 
 void Manager::DeleteCopy()
@@ -390,6 +452,42 @@ void Manager::DeleteCopy()
         return;
     }
 
+    BookID book_id;
+    while (true)
+    {
+        FeedStream("请输入条形码 (回车以退出): ");
+        if (!(iss_ >> book_id))  // EOF or blank line
+            return;
+
+        if (book_id_map_.find(book_id) != book_id_map_.end())
+            break;
+
+        cout << "不存在条形码为 " << book_id << " 的馆藏\n";
+    }
+
+    try
+    {
+        int index;
+        auto book_pair = FindBook(book_id, &index);
+
+        BookStatus status = book_pair.second.status();
+        if (status != BookStatus::ON_SHELF && status != BookStatus::LOST)
+        {
+            cout << "删除失败: 只能删除在架上或丢失的图书\n";
+            return;
+        }
+        if (YesOrNo("你真的要删除该馆藏吗? (y/n):"))
+        {
+            auto &copies = book_pair.first.copies();
+            copies.erase(copies.begin() + index);
+            // remove from id map
+            book_id_map_.erase(book_id);
+        }
+    }
+    catch (const std::out_of_range &oor)
+    {
+        std::cerr << "删除失败: " << oor.what() << std::endl;
+    }
 }
 
 void Manager::DeleteUser()
@@ -402,32 +500,56 @@ void Manager::DeleteUser()
         return;
     }
 
+    UserID user_id;
+    if (!ReadLine("请输入要删除的用户的用户名: ", user_id))
+        return;
+
+    auto user_iter = users_.find(user_id);
+    if (!user_iter->second->holding().empty() ||
+        !user_iter->second->requested().empty())
+    {
+        cout << "删除失败: 该用户持有或预约了馆藏\n";
+        return;
+    }
+
+    if (YesOrNo("确认删除用户吗 (y/n): "))
+        users_.erase(user_iter);
 }
 
-std::pair<Book &, BookCopy &> Manager::FindBook(const BookID &book_id)
+std::pair<Book &, BookCopy &> Manager::FindBook(const BookID &book_id,
+                                                int *index)
 {
     Book &book = books_.at(book_id_map_.at(book_id));
 
-    auto copy_iter = std::find(book.copies().begin(), book.copies().end(),
-                               book_id);
-    if (copy_iter == book.copies().end())  // should be here, not scientific
-        throw std::out_of_range("在对应书目下找不到该副本");
-
-    return {book, *copy_iter};
+    for (int i = 0; i < book.copies().size(); i++)
+    {
+        if (book.copies()[i].id() == book_id)
+        {
+            if (index)
+                *index = i;
+            return {book, book.copies()[i]};
+        }
+    }
+    throw std::out_of_range("在对应书目下找不到该副本");
 }
 
 
 std::pair<const Book &,
-          const BookCopy &> Manager::FindBook(const BookID &book_id) const
+          const BookCopy &> Manager::FindBook(const BookID &book_id,
+                                              int *index) const
 {
     const Book &book = books_.at(book_id_map_.at(book_id));
 
-    auto copy_iter = std::find(book.copies().begin(), book.copies().end(),
-                               book_id);
-    if (copy_iter == book.copies().end())  // should be here, not scientific
-        throw std::out_of_range("在对应书目下找不到该副本");
-
-    return {book, *copy_iter};
+    for (int i = 0; i < book.copies().size(); i++)
+    {
+        if (book.copies()[i].id() == book_id)
+        {
+            if (index)
+                *index = i;
+            return {book, book.copies()[i]};
+        }
+    }
+    throw std::out_of_range("在对应书目下找不到该副本");
 }
 
 void Manager::ShowBookCopy(const BookID &book_id) const

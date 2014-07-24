@@ -48,9 +48,11 @@ class Manager
     void DeleteUser();
 
  private:
-    std::pair<Book &, BookCopy &> FindBook(const BookID &book_id);
+    std::pair<Book &, BookCopy &> FindBook(const BookID &book_id,
+                                           int *index = nullptr);
     std::pair<const Book &,
-              const BookCopy &> FindBook(const BookID &book_id) const;
+              const BookCopy &> FindBook(const BookID &book_id,
+                                         int *index = nullptr) const;
 
     void ShowBookCopy(const BookID &book_id) const;
 
