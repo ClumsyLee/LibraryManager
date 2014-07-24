@@ -2,5 +2,4 @@
 
 namespace library_manager {
 
-
 }  // namespace library_manager

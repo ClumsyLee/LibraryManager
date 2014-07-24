@@ -28,6 +28,7 @@ class Manager
     // access level 1
     void Borrow();
     void Return();
+    void ShowStatus();
 
     // access level 2
     void Request();
@@ -54,6 +55,7 @@ class Manager
     FileIO file_io_;
 
     BookCollection books_;
+    BookIDMap id_map_;
 };
 
 

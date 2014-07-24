@@ -9,12 +9,20 @@
 
 namespace library_manager {
 
+typedef std::string Password;
+
 class User
 {
  public:
     virtual ~User() = default;
 
     bool VerifyPassword(const Password &password) const;
+
+    // will print error info to std::cout
+    // remove entry in requested
+    bool Borrow(const BookID &book_id);
+    bool Request(const BookID &book_id);
+    bool Return(const BookID &book_id);
 
     virtual void Display(std::ostream &os) const = 0;
     virtual bool Save(std::ostream &os) const;
@@ -34,12 +42,12 @@ class User
 
 
     // accessors
-    const std::string & name() const { return name_; }
+    const std::string & id() const { return id_; }
     const std::vector<BookID> & holding() const { return holding_; }
     const std::vector<BookID> & requested() const { return requested_; }
 
  private:
-    std::string name_;
+    std::string id_;
     Password password_;
     std::vector<BookID> holding_;
     std::vector<BookID> requested_;

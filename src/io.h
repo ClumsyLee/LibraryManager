@@ -13,7 +13,7 @@ class FileLoader
  public:
     FileLoader();
 
-    bool Load(BookCollection &books);
+    bool Load(BookCollection &books, BookIDMap &id_map);
     std::unique_ptr<User> Load(const UserID &id);
 
  private:

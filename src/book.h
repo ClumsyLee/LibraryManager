@@ -9,29 +9,34 @@
 #include <vector>
 
 #include "common.h"
+#include "user.h"
 
 namespace library_manager {
 
 enum class BookStatus { ON_SHELF, LENT, AT_LOAN_DESK, LOST };
+enum class BorrowType { GENERAL, SHORT };
 
 class BookCopy
 {
  public:
-    BookCopy(const BookID &id, int volume, int location);
+    BookCopy(const BookID &id, int volume, int location,
+             BorrowType borrow_type);
 
-    // only when the status is ON_SHELF
-    bool Borrow(const UserID *user);
+    // only when the status is ON_SHELF or AT_LOAN_DESK
+    bool Borrow(User *user);
     // only when the status is LENT
-    bool Request(const UserID &user_id);
-    bool Return();
+    bool Request(User *user);
+    bool Return(User *user);
 
     void Update();  // should be done every day
                     // or some requests might be ignored
+    std::string StatusStr() const;
 
     // accessors
     BookID id() const { return id_; }
     int volume() const { return volume_; }
     int location() const { return location_; }
+    BorrowType borrow_type() const { return borrow_type_; }
 
     BookStatus status() const { return status_; }
     UserID holder() const { return holder_; }
@@ -41,15 +46,28 @@ class BookCopy
     { return request_queue_; }
     bool recalled() const { return recalled_; }
 
+    static constexpr int kMinHoldDays = 28;
+    static constexpr int kDaysAfterRecall = 7;
+    static constexpr int kReserveDays = 3;
+
+    static const std::vector<int> kShortNotifyDays;
+    static const std::vector<int> kGeneralNotifyDays;
+
  private:
+    void NotifyRecall();
+    void NotifyRequest();
+    void NotifyOverdueIfNeeded();
+
     // basic info
     BookID id_;
     int volume_;  // 0 if no volumes
     int location_;
+    BorrowType borrow_type_;
 
     // status
     BookStatus status_;
     UserID holder_;
+    std::time_t begin_date_;
     // meas due date when ON_SHELF
     //      the last day at loan dest when AT_LOAN_DESK
     std::time_t due_date_;
@@ -91,6 +109,7 @@ class Book
 };
 
 typedef std::map<CallNum, Book> BookCollection;
+typedef std::map<BookID, CallNum> BookIDMap;
 
 // display a book
 std::ostream & operator<<(std::ostream &os, const Book &book);

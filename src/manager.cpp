@@ -81,6 +81,32 @@ void Manager::Return()
 
 }
 
+void Manager::ShowStatus()
+{
+    using std::cout;
+
+    if (!CheckAccessLevel(1))
+    {
+        cout << "对不起，您没有借还书权限\n";
+        return;
+    }
+
+    if (user_->holding().empty())
+    {
+        std::cout << "您当前没有借出任何馆藏\n";
+    }
+    else
+    {
+        for (const BookID &book_id : user_->holding())
+        {
+            try
+            {
+                
+            }
+        }
+    }
+}
+
 
 // access level 2
 void Manager::Request()
