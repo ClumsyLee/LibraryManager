@@ -1,16 +1,5 @@
-#ifndef LM_MANAGER_H_
-#define LM_MANAGER_H_
-
-#include <map>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <utility>
-
-#include "book.h"
-#include "common.h"
-#include "io.h"
-#include "user.h"
+#ifndef MANAGER_H_
+#define MANAGER_H_
 
 namespace library_manager {
 
@@ -18,62 +7,44 @@ class Manager
 {
  public:
     Manager();
-    Manager(const std::string &book_folder, const std::string &user_folder);
-
-    void Welcome() const;
-    void GoodBye() const;
-
-    void Login();
-    void Logout();
-
-    // access level 0
-    void SearchBook();
-
-    // access level 1
-    void Borrow();
-    void Return();
-    void ShowStatus() const;
-
-    // access level 2
-    void Request();
-
-    // access level 3
-    void AddBook();
-    void AddCopy();
-    void AddUser();
-
-    // access level 4
-    void DeleteBook();
-    void DeleteCopy();
-    void DeleteUser();
+    int Run();
 
  private:
-    std::pair<Book &, BookCopy &> FindBook(const BookID &book_id,
-                                           int *index = nullptr);
-    std::pair<const Book &,
-              const BookCopy &> FindBook(const BookID &book_id,
-                                         int *index = nullptr) const;
-
-    void ShowBookCopy(const BookID &book_id) const;
-
-    bool FeedStream(const std::string &prompt);
-
-    bool CheckAccessLevel(int min_level) const;
-
-    // status
-    User *user_now_;
-
-    // for implement
-    std::istringstream iss_;
-    FileIO file_io_;
-
-    // datas
-    std::map<CallNum, Book> books_;
-    std::map<BookID, CallNum> book_id_map_;
-    std::map<UserID, std::shared_ptr<User>> users_;
+    virtual void MainMenu();
+    virtual void Query() = 0;
+    virtual void ShowBook() = 0;
+    virtual void RequestBook() = 0;
 };
 
+class ReaderManager
+{
+ public:
+    ReaderManager();
 
-}  // namespace library_manager
+ private:
+    virtual void MainMenu();
+};
 
-#endif  // LM_MANAGER_H_
+class AdminManager
+{
+ public:
+    AdminManager();
+
+ private:
+    virtual void MainMenu();
+
+};
+
+class GuestManager
+{
+ public:
+    GuestManager();
+
+ private:
+    virtual void MainMenu();
+
+};
+
+}
+
+#endif  // MANAGER_H_
