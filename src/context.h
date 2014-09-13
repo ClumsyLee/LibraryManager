@@ -1,15 +1,17 @@
 #ifndef CONTEXT_H_
 #define CONTEXT_H_
 
-#include <memory>
 #include <exception>
-#include "interface.h"
+#include <memory>
+#include <string>
 
 namespace sql {
     class Connection;
 }  // namespace sql
 
 namespace library_manager {
+
+class Interface;
 
 class Context
 {

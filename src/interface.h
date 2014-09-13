@@ -1,6 +1,8 @@
 #ifndef INTERFACE_H_
 #define INTERFACE_H_
 
+#include <string>
+
 namespace library_manager {
 
 class Context;
@@ -18,9 +20,17 @@ class Interface
     virtual void RequestBook(Context *context);
 
     static Interface * GetInstance();
+
+ protected:
+    enum class User { None, Reader, Admin, Guest };
+    static std::string ReadLine(const std::string &promt);
+    static std::string ReadPassword(const std::string &prompt);
+    static User Login(const std::string &user_name,
+                      const std::string &password);
+    static User GetValidUser();
 };
 
-class ReaderInterface
+class ReaderInterface : public Interface
 {
  public:
     ReaderInterface();
@@ -31,7 +41,7 @@ class ReaderInterface
     static ReaderInterface * GetInstance();
 };
 
-class AdminInterface
+class AdminInterface : public Interface
 {
  public:
     AdminInterface();
@@ -42,7 +52,7 @@ class AdminInterface
     static AdminInterface * GetInstance();
 };
 
-class GuestInterface
+class GuestInterface : public Interface
 {
  public:
     GuestInterface();

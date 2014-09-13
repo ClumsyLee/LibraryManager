@@ -1,6 +1,7 @@
 // #include "mysql_connection.h"
 // #include <cppconn/driver.h>
 #include "context.h"
+#include "interface.h"
 
 namespace library_manager {
 
