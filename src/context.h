@@ -2,12 +2,8 @@
 #define CONTEXT_H_
 
 #include <exception>
-#include <memory>
 #include <string>
-
-namespace sql {
-    class Connection;
-}  // namespace sql
+#include "common.h"
 
 namespace library_manager {
 
@@ -27,19 +23,16 @@ class Context
         int return_value_;
     };
 
-    Context(const std::string &host, const std::string &user_name,
-            const std::string &password);
+    Context();
 
     int Run();
 
-    void SetInterface(Interface *new_interface) { interface_ = new_interface; }
-    void SetState(State new_state) { state_ = new_state; }
-    sql::Connection * connection() { return connection_.get(); }
+    void set_interface(Interface *interface) { interface_ = interface; }
+    void set_state(State state) { state_ = state; }
 
  private:
     Interface *interface_;
     State state_;
-    std::unique_ptr<sql::Connection> connection_;
 };
 
 }  // namespace library_manager

@@ -5,13 +5,10 @@
 
 namespace library_manager {
 
-Context::Context(const std::string &host, const std::string &user_name,
-                 const std::string &password)
+Context::Context()
     : interface_(Interface::GetInstance()),
-      state_(&Interface::WelcomeScreen),
-      connection_()
+      state_(&Interface::WelcomeScreen)
 {
-    // TODO: connect to sql sever
 }
 
 int Context::Run()
