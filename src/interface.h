@@ -13,9 +13,11 @@ class Interface
 
     void WelcomeScreen(Context *context);
     virtual void MainMenu(Context *context);
-    virtual void Query(Context *context) = 0;
-    virtual void ShowBook(Context *context) = 0;
-    virtual void RequestBook(Context *context) = 0;
+    virtual void Query(Context *context);
+    virtual void ShowBook(Context *context);
+    virtual void RequestBook(Context *context);
+
+    static Interface * GetInstance();
 };
 
 class ReaderInterface
