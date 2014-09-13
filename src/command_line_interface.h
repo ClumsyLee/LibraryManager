@@ -12,6 +12,6 @@ class CommandLineInterface
 
 };
 
-}
+}  // namespace library_manager
 
 #endif  // COMMAND_LINE_INTERFACE_H_
