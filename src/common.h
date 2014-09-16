@@ -9,7 +9,9 @@ namespace library_manager {
 typedef std::uint_least32_t UserID;
 typedef std::uint_least64_t ISBN;
 typedef std::string CopyID;
-enum class User { NONE, READER, ADMIN, GUEST };
+typedef std::uint_least64_t PhoneNum;
+typedef std::string CallNum;
+enum class User { READER, ADMIN };
 
 }  // namespace library_manager
 

@@ -24,14 +24,14 @@ DROP TABLE IF EXISTS `Book`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `Book` (
   `isbn` bigint(13) unsigned NOT NULL,
-  `call_number` varchar(20) NOT NULL,
+  `call_num` varchar(20) NOT NULL,
   `title` varchar(255) NOT NULL,
   `author` varchar(128) NOT NULL,
   `imprint` varchar(128) NOT NULL,
   `abstract` text,
   `table_of_contents` text,
   PRIMARY KEY (`isbn`),
-  UNIQUE KEY `call_number` (`call_number`)
+  UNIQUE KEY `call_num` (`call_num`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -61,7 +61,7 @@ CREATE TABLE `Borrow` (
   `recalled` tinyint(1) NOT NULL,
   PRIMARY KEY (`reader_id`,`copy_id`),
   KEY `copy_id` (`copy_id`),
-  CONSTRAINT `Borrow_ibfk_1` FOREIGN KEY (`reader_id`) REFERENCES `Reader` (`id`),
+  CONSTRAINT `Borrow_ibfk_1` FOREIGN KEY (`reader_id`) REFERENCES `User` (`id`),
   CONSTRAINT `Borrow_ibfk_2` FOREIGN KEY (`copy_id`) REFERENCES `Copy` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -105,28 +105,30 @@ INSERT INTO `Copy` VALUES ('C2010095T',9787111165057,0,'LENT'),('C27415768',9787
 UNLOCK TABLES;
 
 --
--- Table structure for table `Reader`
+-- Table structure for table `User`
 --
 
-DROP TABLE IF EXISTS `Reader`;
+DROP TABLE IF EXISTS `User`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `Reader` (
+CREATE TABLE `User` (
   `id` int(10) unsigned NOT NULL,
   `name` varchar(32) DEFAULT NULL,
-  `password` char(41) DEFAULT NULL,
+  `password` varchar(255) NOT NULL,
+  `salt` varchar(255) NOT NULL,
+  `is_admin` bool NOT NULL DEFAULT false,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `Reader`
+-- Dumping data for table `User`
 --
 
-LOCK TABLES `Reader` WRITE;
-/*!40000 ALTER TABLE `Reader` DISABLE KEYS */;
-INSERT INTO `Reader` VALUES (2013011187,'李思涵',NULL);
-/*!40000 ALTER TABLE `Reader` ENABLE KEYS */;
+LOCK TABLES `User` WRITE;
+/*!40000 ALTER TABLE `User` DISABLE KEYS */;
+INSERT INTO `User` VALUES (2013011187,'李思涵','1234', '1234', false);
+/*!40000 ALTER TABLE `User` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -142,7 +144,7 @@ CREATE TABLE `Request` (
   `time` timestamp NOT NULL,
   PRIMARY KEY (`reader_id`,`copy_id`),
   KEY `copy_id` (`copy_id`),
-  CONSTRAINT `Request_ibfk_1` FOREIGN KEY (`reader_id`) REFERENCES `Reader` (`id`),
+  CONSTRAINT `Request_ibfk_1` FOREIGN KEY (`reader_id`) REFERENCES `User` (`id`),
   CONSTRAINT `Request_ibfk_2` FOREIGN KEY (`copy_id`) REFERENCES `Copy` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

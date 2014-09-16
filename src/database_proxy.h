@@ -9,6 +9,7 @@ namespace sql {
 
 class Connection;  // forward declaration
 class ResultSet;
+class PreparedStatement;
 
 }  // namespace sql
 
@@ -25,9 +26,9 @@ class DatabaseProxy
                          const std::string &user_name,
                          const std::string &password);
 
-    User Login(UserID, const std::string &password);
+    bool Login(UserID user_id, const std::string &password, User &user);
 
-    // name, phone_num
+    // name
     QueryResult ReaderInfo(UserID reader_id);
 
     // [isbn, title, copy_id, due_date, request_num, call_num]
@@ -41,7 +42,7 @@ class DatabaseProxy
     // isbn, title, author, imprint, abstract, table_of_content, call_num
     QueryResult BookInfo(ISBN isbn);
 
-    // [copy_id, position, volume, status, due_date, request_num]
+    // [copy_id, status, due_date, request_num]
     QueryResult CopiesOfBook(ISBN isbn);
 
 
@@ -54,6 +55,7 @@ class DatabaseProxy
     static DatabaseProxy * Instance();
 
  private:
+    typedef std::unique_ptr<sql::PreparedStatement> Statement;
     std::unique_ptr<sql::Connection> connection_;
 };
 

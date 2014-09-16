@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 #include "common.h"
 
 namespace sql {
@@ -20,13 +21,10 @@ class Interface
     virtual ~Interface() = default;
 
     void WelcomeScreen(Context *context);
-    virtual void MainMenu(Context *context);
+    virtual void MainMenu(Context *context) {}
     virtual void Query(Context *context);
-    virtual void ShowBook(Context *context);
-    virtual void RequestBook(Context *context);
-
-    UserID user_id() const { return user_id_; }
-    void set_user_id(UserID user_id) { user_id_ = user_id; }
+    virtual void ShowBook(Context *context) {}
+    virtual void RequestBook(Context *context) {}
 
     static Interface * Instance();
 
@@ -36,9 +34,7 @@ class Interface
     static std::string ReadPassword(const std::string &prompt);
 
  private:
-    static User GetValidUser();
-
-    UserID user_id_;
+    static void GetValidUser(UserID &user_id, User &user);
 };
 
 class ReaderInterface : public Interface
@@ -52,12 +48,16 @@ class ReaderInterface : public Interface
     static ReaderInterface * Instance();
 
  private:
+    typedef std::pair<ISBN, CopyID> TempBook;
+
     void ShowReaderInfo() const;
     void ShowBorrowed();
     void ShowRequested();
 
-    std::vector<ISBN> borrowed_;
-    std::vector<CopyID> requested_;
+    UserID user_id_;
+    std::vector<TempBook> borrowed_;
+    std::vector<TempBook> requested_;
+    ISBN current_book_;
 };
 
 class AdminInterface : public Interface
@@ -69,17 +69,6 @@ class AdminInterface : public Interface
     virtual void MainMenu(Context *context);
 
     static AdminInterface * Instance();
-};
-
-class GuestInterface : public Interface
-{
- public:
-    GuestInterface();
-    virtual ~GuestInterface();
-
-    virtual void MainMenu(Context *context);
-
-    static GuestInterface * Instance();
 };
 
 }  // namespace library_manager
