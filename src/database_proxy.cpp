@@ -1,5 +1,6 @@
 #include <vector>
 
+#include <openssl/evp.h>
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/resultset.h>
@@ -104,22 +105,14 @@ DatabaseProxy::QueryResult DatabaseProxy::QueryRequested(UserID reader_id)
     return QueryResult(statement->executeQuery());
 }
 
-DatabaseProxy::QueryResult DatabaseProxy::QueryByTitle(const std::string &title)
+DatabaseProxy::QueryResult DatabaseProxy::Query(const std::string &keyword)
 {
     static Statement statement(connection_->prepareStatement(
-        "SELECT isbn, title, author, imprint FROM Book WHERE title LIKE ?"));
+        "SELECT isbn, title, author, imprint FROM Book "
+        "WHERE title LIKE ? OR author LIKE ?"));
 
-    statement->setString(1, title);
-    return QueryResult(statement->executeQuery());
-}
-
-DatabaseProxy::QueryResult DatabaseProxy::QueryByAuthor(
-        const std::string &author)
-{
-    static Statement statement(connection_->prepareStatement(
-        "SELECT isbn, title, author, imprint FROM Book WHERE author LIKE ?"));
-
-    statement->setString(1, author);
+    statement->setString(1, keyword);
+    statement->setString(2, keyword);
     return QueryResult(statement->executeQuery());
 }
 

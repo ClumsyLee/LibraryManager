@@ -9,23 +9,88 @@
 
 namespace {
 
+std::string ReadLine(const std::string &promt)
+{
+    std::cout << promt;
+    std::string line;
+    if (!std::getline(std::cin, line) || std::cin.eof())
+    {
+        throw library_manager::Context::ExitProgram(1);
+    }
+    return line;
+}
+
+library_manager::UserID ReadUserID(const std::string &promt)
+{
+    return boost::lexical_cast<library_manager::UserID>(ReadLine(promt));
+}
+
+std::string ReadPassword(const std::string &promt)
+{
+    return ReadLine(promt);
+}
+
+void ShowThisCopy(int index, sql::ResultSet *copies)
+{
+    using std::cout;
+
+    cout.width(2);
+    cout << index << ". " << copies->getString("title")
+         << "\n  条形码: " << copies->getString("id")
+         << "\n  到期时间: " << copies->getString("due_date");
+    int request_num = copies->getInt("request_num");
+    if (request_num)
+    {
+        cout << " +" << boost::lexical_cast<std::string>(request_num)
+             << " 预约";
+    }
+    cout << "\n  索书号: " << copies->getString("call_num") << std::endl;
+}
+
 void ShowThisBook(int index, sql::ResultSet *books)
 {
     using std::cout;
 
     cout.width(2);
     cout << index << ". " << books->getString("title")
-         << "\n  条形码: " << books->getString("id")
-         << "\n  到期时间: " << books->getString("due_date");
-    int request_num = books->getInt("request_num");
-    if (request_num)
-    {
-        cout << " +" << boost::lexical_cast<std::string>(request_num)
-             << " 预约";
-    }
-    cout << "\n  索书号: " << books->getString("call_num") << std::endl;
+         << "\n    " << books->getString("author")
+         << "\n    " << books->getString("imprint") << std::endl;
 }
 
+
+enum Choice { CHAR, INDEX };
+Choice GetChoice(const std::string &chars, int max_index, int &choice)
+{
+    using std::cout;
+
+    while (true)
+    {
+        std::string line = ReadLine(":");
+        if (line.size() == 1)
+        {
+            char ch = line[0];
+            if (chars.find(ch) != chars.npos)
+            {
+                choice = ch;
+                return Choice::CHAR;
+            }
+        }
+        try  // try to treat it as an index
+        {
+            int index = boost::lexical_cast<int>(line);
+            if (index >= 1 || index <= max_index)
+            {
+                choice = index;
+                return Choice::INDEX;
+            }
+        }
+        catch (const boost::bad_lexical_cast &)
+        {
+        }
+        // failed to get choich, read line again
+        cout << "无效的输入\n";
+    }
+}
 
 }  // namespace
 
@@ -67,32 +132,119 @@ void Interface::WelcomeScreen(Context *context)
 
 void Interface::Query(Context *context)
 {
+    using std::cout;
+    using std::endl;
 
+    if (context->keyword().empty())
+    {
+        std::string keyword = ReadLine("请输入关键字 (空行以返回主菜单): ");
+        if (keyword.empty())
+        {
+            context->set_state(&Interface::MainMenu);
+            return;
+        }
+        context->set_keyword('%' + keyword + '%');
+    }
+
+    int index = 1;
+    std::vector<ISBN> book_list;
+
+    auto result = DatabaseProxy::Instance()->Query(context->keyword());
+    while (result->next())
+    {
+        ShowThisBook(index++, result.get());
+        book_list.push_back(result->getUInt64("isbn"));
+        cout << endl;
+    }
+
+    if (index == 1)  // no result
+    {
+        cout << "找不到符合条件的书籍\n\n";
+    }
+    else
+    {
+        cout << "[编号] 查看对应书籍的详细信息\n";
+    }
+    cout << "[r] 重新查询          [q] 返回主菜单\n";
+
+    int choice;
+    if (GetChoice("rq", index - 1, choice) == Choice::CHAR)
+    {
+        if (choice == 'r')
+            return;  // state need not to change
+        else
+            context->set_state(&Interface::MainMenu);
+    }
+    else
+    {
+        context->set_current_book(book_list[choice - 1]);
+        context->set_state(&Interface::ShowBook);
+    }
+}
+
+void Interface::ShowBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    {  // book info
+        auto book_info =
+            DatabaseProxy::Instance()->BookInfo(context->current_book());
+        if (!book_info->next())
+        {
+            throw std::runtime_error(
+                "Cannot find a book (ISBN: " +
+                boost::lexical_cast<std::string>(context->current_book()) +
+                ") that should exist");
+        }
+
+        cout << "题名: " << book_info->getString("title")
+             << "\n作者: " << book_info->getString("author")
+             << "\n出版发行: " << book_info->getString("imprint")
+             << "\n索书号: " << book_info->getString("call_num");
+        if (!book_info->isNull("abstract"))
+             cout << "\n内容简介: " << book_info->getString("abstract");
+        if (!book_info->isNull("table_of_contents"))
+             cout << "\n目录: " << book_info->getString("table_of_contents");
+    }
+    cout << "\n\n副本信息:\n";
+    {  // copy info
+        auto copy_info =
+            DatabaseProxy::Instance()->CopiesOfBook(context->current_book());
+
+        while (copy_info->next())
+        {
+            cout << copy_info->getString("id") << "    "
+                 << copy_info->getString("status") << "    "
+                 << copy_info->getString("due_date");
+            int request_num = copy_info->getInt("request_num");
+            if (request_num)
+            {
+             cout << " +" << boost::lexical_cast<std::string>(request_num)
+                  << " 预约";
+            }
+            cout << endl;
+        }
+    }
+
+    cout << "\n[e] 查询界面          [m] 主菜单\n";
+    int choice;
+    GetChoice("em", 0, choice);
+    if (choice == 'e')
+    {
+        context->set_state(&Interface::Query);
+    }
+    else
+    {
+        context->set_state(&Interface::MainMenu);
+    }
+    context->set_current_book(ISBN());
 }
 
 Interface * Interface::Instance()
 {
     static Interface interface;
     return &interface;
-}
-
-std::string Interface::ReadLine(const std::string &promt)
-{
-    std::cout << promt;
-    std::string line;
-    std::getline(std::cin, line);
-    return line;
-}
-
-UserID Interface::ReadUserID(const std::string &promt)
-{
-    return boost::lexical_cast<UserID>(ReadLine(promt));
-}
-
-
-std::string Interface::ReadPassword(const std::string &promt)
-{
-    return ReadLine(promt);
 }
 
 void Interface::GetValidUser(UserID &user_id, User &user)
@@ -126,47 +278,36 @@ void ReaderInterface::MainMenu(Context *context)
 
     cout << "[编号] 查看对应书籍的详细信息\n"
             "[e] 进入查询界面         [q] 退出\n";
-    while (true)
+
+    int choice;
+    if (GetChoice("eq", borrowed_.size() + requested_.size(), choice)
+                == Choice::CHAR)
     {
-        std::string line = ReadLine(": ");
-        if (line == "e")
+        if (choice == 'e')
         {
-            current_book_ = ISBN();
-            context->set_state(&Interface::ShowBook);
+            context->set_current_book(ISBN());
+            context->set_state(&Interface::Query);
             return;
         }
-        else if (line == "q")
+        else  // choice == 'q'
         {
             context->set_state(&Interface::WelcomeScreen);
+            context->set_current_book(ISBN());
+            context->set_user_id(UserID());
             return;
         }
-        else  // may be an index
-        {
-            try
-            {
-                int index = boost::lexical_cast<int>(line);
-                if (index < 1 || index > (borrowed_.size() + requested_.size()))
-                {
-                    cout << "无效的编号\n";
-                }
-                else
-                {
-                    if (index <= borrowed_.size())  // book in borrowed
-                        current_book_ = borrowed_[index - 1].first;
-                    else  // book in requested
-                        current_book_ =
-                            requested_[index - borrowed_.size() - 1].first;
+    }
+    else  // an index
+    {
+        // book in borrowed
+        if (choice <= static_cast<int>(borrowed_.size()))
+            context->set_current_book(borrowed_[choice - 1].first);
+        else  // book in requested
+            context->set_current_book(
+                requested_[choice - borrowed_.size() - 1].first);
 
-                    context->set_state(&Interface::Query);
-                    return;
-                }
-            }
-            catch (const boost::bad_lexical_cast &)
-            {
-                cout << "无效的输入\n";
-            }
-        }
-        // failed to choose, get line again
+        context->set_state(&Interface::ShowBook);
+        return;
     }
 }
 
@@ -205,13 +346,12 @@ void ReaderInterface::ShowBorrowed()
     {
         borrowed_.emplace_back(borrowed->getUInt64("isbn"),
                                borrowed->getString("id"));
-        ShowThisBook(index++, borrowed.get());
+        ShowThisCopy(index++, borrowed.get());
         cout << endl;
     }
 
     if (index == 1)  // no entry
-        cout << "(无)\n";
-    cout << endl;
+        cout << "(无)\n\n";
 }
 
 void ReaderInterface::ShowRequested()
@@ -229,12 +369,12 @@ void ReaderInterface::ShowRequested()
     {
         requested_.emplace_back(requested->getUInt64("isbn"),
                                 requested->getString("id"));
-        ShowThisBook(index++, requested.get());
+        ShowThisCopy(index++, requested.get());
+        cout << endl;
     }
 
-    if (index == borrowed_.size() + 1)
-        cout << "(无)\n";
-    cout << endl;
+    if (index == static_cast<int>(borrowed_.size() + 1))
+        cout << "(无)\n\n";
 }
 
 

@@ -31,18 +31,17 @@ class DatabaseProxy
     // name
     QueryResult ReaderInfo(UserID reader_id);
 
-    // [isbn, title, copy_id, due_date, request_num, call_num]
+    // [isbn, title, id, due_date, request_num, call_num]
     QueryResult QueryBorrowed(UserID reader_id);
     QueryResult QueryRequested(UserID reader_id);
 
     // [isbn, title, author, imprint]
-    QueryResult QueryByTitle(const std::string &title);
-    QueryResult QueryByAuthor(const std::string &author);
+    QueryResult Query(const std::string &keyword);
 
-    // isbn, title, author, imprint, abstract, table_of_content, call_num
+    // isbn, title, author, imprint, abstract, table_of_contents, call_num
     QueryResult BookInfo(ISBN isbn);
 
-    // [copy_id, status, due_date, request_num]
+    // [id, status, due_date, request_num]
     QueryResult CopiesOfBook(ISBN isbn);
 
 

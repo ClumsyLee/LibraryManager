@@ -23,15 +23,10 @@ class Interface
     void WelcomeScreen(Context *context);
     virtual void MainMenu(Context *context) {}
     virtual void Query(Context *context);
-    virtual void ShowBook(Context *context) {}
+    virtual void ShowBook(Context *context);
     virtual void RequestBook(Context *context) {}
 
     static Interface * Instance();
-
- protected:
-    static std::string ReadLine(const std::string &promt);
-    static UserID ReadUserID(const std::string &promt);
-    static std::string ReadPassword(const std::string &prompt);
 
  private:
     static void GetValidUser(UserID &user_id, User &user);
@@ -57,7 +52,6 @@ class ReaderInterface : public Interface
     UserID user_id_;
     std::vector<TempBook> borrowed_;
     std::vector<TempBook> requested_;
-    ISBN current_book_;
 };
 
 class AdminInterface : public Interface
