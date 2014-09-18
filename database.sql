@@ -1,4 +1,4 @@
--- MySQL dump 10.13  Distrib 5.6.20, for Linux (x86_64)
+-- MySQL dump 10.13  Distrib 5.6.20, for osx10.8 (x86_64)
 --
 -- Host: localhost    Database: library
 -- ------------------------------------------------------
@@ -72,7 +72,7 @@ CREATE TABLE `Borrow` (
 
 LOCK TABLES `Borrow` WRITE;
 /*!40000 ALTER TABLE `Borrow` DISABLE KEYS */;
-INSERT INTO `Borrow` VALUES (2013011187,'C2010095T','2014-06-28','2014-09-24',0,0),(2013011187,'C27415768','2014-05-09','2014-09-24',0,0);
+INSERT INTO `Borrow` VALUES (2013011187,'C2010095T','2014-09-18','2014-12-17',0,0),(2013011189,'C27415768','2014-09-18','2014-12-17',0,0);
 /*!40000 ALTER TABLE `Borrow` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -105,33 +105,6 @@ INSERT INTO `Copy` VALUES ('C2010095T',9787111165057,0,'LENT'),('C27415768',9787
 UNLOCK TABLES;
 
 --
--- Table structure for table `User`
---
-
-DROP TABLE IF EXISTS `User`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `User` (
-  `id` int(10) unsigned NOT NULL,
-  `name` varchar(32) DEFAULT NULL,
-  `password` varchar(255) NOT NULL,
-  `salt` varchar(255) NOT NULL,
-  `is_admin` bool NOT NULL DEFAULT false,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `User`
---
-
-LOCK TABLES `User` WRITE;
-/*!40000 ALTER TABLE `User` DISABLE KEYS */;
-INSERT INTO `User` VALUES (2013011187,'李思涵','1234', '1234', false);
-/*!40000 ALTER TABLE `User` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `Request`
 --
 
@@ -141,7 +114,7 @@ DROP TABLE IF EXISTS `Request`;
 CREATE TABLE `Request` (
   `reader_id` int(10) unsigned NOT NULL,
   `copy_id` char(9) NOT NULL,
-  `time` timestamp NOT NULL,
+  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`reader_id`,`copy_id`),
   KEY `copy_id` (`copy_id`),
   CONSTRAINT `Request_ibfk_1` FOREIGN KEY (`reader_id`) REFERENCES `User` (`id`),
@@ -155,8 +128,72 @@ CREATE TABLE `Request` (
 
 LOCK TABLES `Request` WRITE;
 /*!40000 ALTER TABLE `Request` DISABLE KEYS */;
+INSERT INTO `Request` VALUES (2013011188,'C27415768','2014-09-18 11:44:16');
 /*!40000 ALTER TABLE `Request` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `User`
+--
+
+DROP TABLE IF EXISTS `User`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `User` (
+  `id` int(10) unsigned NOT NULL,
+  `name` varchar(32) DEFAULT NULL,
+  `password` varchar(255) NOT NULL,
+  `salt` varchar(255) NOT NULL,
+  `is_admin` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `User`
+--
+
+LOCK TABLES `User` WRITE;
+/*!40000 ALTER TABLE `User` DISABLE KEYS */;
+INSERT INTO `User` VALUES (1,'admin','1234','1234',1),(2013011187,'李思涵','1234','1234',0),(2013011188,'常增禄','1234','1234',0),(2013011189,'郭一隆','1234','1234',0);
+/*!40000 ALTER TABLE `User` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Temporary view structure for view `copyinfo`
+--
+
+DROP TABLE IF EXISTS `copyinfo`;
+/*!50001 DROP VIEW IF EXISTS `copyinfo`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE VIEW `copyinfo` AS SELECT 
+ 1 AS `id`,
+ 1 AS `title`,
+ 1 AS `isbn`,
+ 1 AS `call_num`,
+ 1 AS `status`,
+ 1 AS `due_date`,
+ 1 AS `request_num`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Final view structure for view `copyinfo`
+--
+
+/*!50001 DROP VIEW IF EXISTS `copyinfo`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8 */;
+/*!50001 SET character_set_results     = utf8 */;
+/*!50001 SET collation_connection      = utf8_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`thomas`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `copyinfo` AS select `copy`.`id` AS `id`,`book`.`title` AS `title`,`book`.`isbn` AS `isbn`,`book`.`call_num` AS `call_num`,`copy`.`status` AS `status`,`borrow`.`due_date` AS `due_date`,count(`request`.`reader_id`) AS `request_num` from (((`copy` join `book` on((`copy`.`isbn` = `book`.`isbn`))) left join `borrow` on((`borrow`.`copy_id` = `copy`.`id`))) left join `request` on((`request`.`copy_id` = `copy`.`id`))) group by `copy`.`id` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -167,4 +204,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-09-11 18:58:26
+-- Dump completed on 2014-09-18 20:01:21
