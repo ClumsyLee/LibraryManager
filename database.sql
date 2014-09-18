@@ -190,7 +190,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = utf8_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`thomas`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `copyinfo` AS select `copy`.`id` AS `id`,`book`.`title` AS `title`,`book`.`isbn` AS `isbn`,`book`.`call_num` AS `call_num`,`copy`.`status` AS `status`,`borrow`.`due_date` AS `due_date`,count(`request`.`reader_id`) AS `request_num` from (((`copy` join `book` on((`copy`.`isbn` = `book`.`isbn`))) left join `borrow` on((`borrow`.`copy_id` = `copy`.`id`))) left join `request` on((`request`.`copy_id` = `copy`.`id`))) group by `copy`.`id` */;
+/*!50001 VIEW `copyinfo` AS select `Copy`.`id` AS `id`,`Book`.`title` AS `title`,`Book`.`isbn` AS `isbn`,`Book`.`call_num` AS `call_num`,`Copy`.`status` AS `status`,`Borrow`.`due_date` AS `due_date`,count(`Request`.`reader_id`) AS `request_num` from (((`Copy` join `Book` on((`Copy`.`isbn` = `Book`.`isbn`))) left join `Borrow` on((`Borrow`.`copy_id` = `Copy`.`id`))) left join `Request` on((`Request`.`copy_id` = `Copy`.`id`))) group by `Copy`.`id` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
