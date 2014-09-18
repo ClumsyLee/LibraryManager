@@ -21,10 +21,14 @@ class Interface
     virtual ~Interface() = default;
 
     void WelcomeScreen(Context *context);
-    virtual void MainMenu(Context *context) {}
+    void Login(Context *context);
+    virtual void MainMenu(Context *context);
     virtual void Query(Context *context);
     virtual void ShowBook(Context *context);
-    virtual void RequestBook(Context *context) {}
+    virtual void BorrowBook(Context *context);
+    virtual void RequestBook(Context *context);
+    virtual void ReturnBook(Context *context);
+    virtual void GetRequested(Context *context);
 
     static Interface * Instance();
 
@@ -61,6 +65,9 @@ class AdminInterface : public Interface
     virtual ~AdminInterface() = default;
 
     virtual void MainMenu(Context *context);
+    virtual void BorrowBook(Context *context);
+    virtual void ReturnBook(Context *context);
+    virtual void GetRequested(Context *context);
 
     static AdminInterface * Instance();
 };

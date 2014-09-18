@@ -15,10 +15,10 @@ std::string HashPassword(const std::string &password,
     return password;
 }
 
-std::string GetRandomSalt(std::size_t bytes)
-{
-    return std::string();
-}
+// std::string GetRandomSalt(std::size_t bytes)
+// {
+//     return std::string();
+// }
 
 
 }  // namespace
@@ -125,6 +125,16 @@ DatabaseProxy::QueryResult DatabaseProxy::BookInfo(ISBN isbn)
     return QueryResult(statement->executeQuery());
 }
 
+DatabaseProxy::QueryResult DatabaseProxy::CopyInfo(const CopyID &copy_id)
+{
+    static Statement statement(connection_->prepareStatement(
+        "SELECT * FROM CopyInfo "
+        "WHERE id=?"));
+
+    statement->setString(1, copy_id);
+    return QueryResult(statement->executeQuery());
+}
+
 DatabaseProxy::QueryResult DatabaseProxy::CopiesOfBook(ISBN isbn)
 {
     static Statement statement(connection_->prepareStatement(
@@ -135,23 +145,134 @@ DatabaseProxy::QueryResult DatabaseProxy::CopiesOfBook(ISBN isbn)
     return QueryResult(statement->executeQuery());
 }
 
-// bool DatabaseProxy::BorrowCopy(UserID reader_id, const CopyID &copy_id)
-// {
-//     static Statement statement(connection_->prepareStatement(
-//         ""));
+bool DatabaseProxy::BorrowCopy(UserID reader_id, const CopyID &copy_id)
+{
+    auto copy_info = CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        std::cerr << "找不到条形码为 " << copy_id << " 的副本\n";
+        return false;
+    }
+    if (copy_info->getString("status") != "ON_SHELF")
+    {
+        std::cerr << "条形码为 " << copy_id
+                  << " 的副本当前不在架上, 不能借出\n";
+        return false;
+    }
 
-// }
+    InsertBorrow(reader_id, copy_id, kLoanPeriod);
+    UpdateCopyStatus(copy_id, "LENT");
+    return true;
+}
 
-// bool DatabaseProxy::ReturnCopy(const CopyID &copy_id)
-// {
+bool DatabaseProxy::ReturnCopy(const CopyID &copy_id)
+{
+    auto copy_info = CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        std::cerr << "找不到条形码为 " << copy_id << " 的副本\n";
+        return false;
+    }
+    if (copy_info->getString("status") != "LENT")
+    {
+        std::cerr << "条形码为 " << copy_id
+                  << " 的副本当前不在借出状态, 不能归还\n";
+        return false;
+    }
 
-// }
+    DeleteBorrow(copy_id);
+
+    if (copy_info->getInt("request_num") != 0)
+        UpdateCopyStatus(copy_id, "AT_LOAN_DESK");
+    else
+        UpdateCopyStatus(copy_id, "ON_SHELF");
+
+    return true;
+}
+
+bool DatabaseProxy::GetRequested(UserID reader_id, const CopyID &copy_id)
+{
+    static Statement requests_now(connection_->prepareStatement(
+        "SELECT reader_id FROM Request WHERE copy_id=? ORDER BY time"));
+
+    auto copy_info = CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        std::cerr << "找不到条形码为 " << copy_id << " 的副本\n";
+        return false;
+    }
+    if (copy_info->getString("status") != "AT_LOAN_DESK")
+    {
+        std::cerr << "条形码为 " << copy_id
+                  << " 的副本当前不在预约架上, 不能取书\n";
+        return false;
+    }
+
+    requests_now->setString(1, copy_id);
+    QueryResult request_status(requests_now->executeQuery());
+    if (request_status->next() &&
+        request_status->getUInt("reader_id") == reader_id)
+    {
+        // success
+        DeleteRequest(reader_id, copy_id);
+        InsertBorrow(reader_id, copy_id, kLoanPeriod);
+        UpdateCopyStatus(copy_id, "LENT");
+        return true;
+    }
+    else
+    {
+        std::cerr << "该读者不是当前可以取书的预约者\n";
+        return false;
+    }
+}
 
 // bool DatabaseProxy::RequestCopy(UserID reader_id, const CopyID &copy_id)
 // {
 
 // }
 
+void DatabaseProxy::UpdateCopyStatus(const CopyID &copy_id,
+                                     const std::string &status)
+{
+    static Statement update(connection_->prepareStatement(
+        "UPDATE Copy SET status=? WHERE id=?"));
+
+    update->setString(1, status);
+    update->setString(2, copy_id);
+    update->execute();
+}
+
+void DatabaseProxy::InsertBorrow(UserID reader_id, const CopyID &copy_id,
+                                 int days)
+{
+    static Statement borrow(connection_->prepareStatement(
+        "INSERT INTO Borrow VALUES (?, ?, CURRENT_DATE(), "
+        "DATE_ADD(CURRENT_DATE(), INTERVAL ? DAY), 0, 0)"));
+
+    borrow->setUInt(1, reader_id);
+    borrow->setString(2, copy_id);
+    borrow->setInt(3, days);
+    borrow->execute();
+}
+
+void DatabaseProxy::DeleteBorrow(const CopyID &copy_id)
+{
+    static Statement delete_borrow(connection_->prepareStatement(
+        "DELETE FROM Borrow WHERE copy_id=?"));
+
+    delete_borrow->setString(1, copy_id);
+    delete_borrow->execute();
+}
+
+void DatabaseProxy::DeleteRequest(UserID reader_id, const CopyID &copy_id)
+{
+    static Statement delete_request(connection_->prepareStatement(
+        "DELETE FROM Request WHERE copy_id=? AND reader_id=?"));
+
+    delete_request->setString(1, copy_id);
+    delete_request->setUInt(2, reader_id);
+    delete_request->execute();
+}
 
 
 

@@ -41,12 +41,16 @@ class DatabaseProxy
     // isbn, title, author, imprint, abstract, table_of_contents, call_num
     QueryResult BookInfo(ISBN isbn);
 
+    // id, title, isbn, call_num, status, due_date, request_num
+    QueryResult CopyInfo(const CopyID &copy_id);
+
     // [id, status, due_date, request_num]
     QueryResult CopiesOfBook(ISBN isbn);
 
 
     // Return true if succeed, false otherwise.
     bool BorrowCopy(UserID reader_id, const CopyID &copy_id);
+    bool GetRequested(UserID reader_id, const CopyID &copy_id);
     bool ReturnCopy(const CopyID &copy_id);
     bool RequestCopy(UserID reader_id, const CopyID &copy_id);
 
@@ -54,6 +58,11 @@ class DatabaseProxy
     static DatabaseProxy * Instance();
 
  private:
+    void UpdateCopyStatus(const CopyID &copy_id, const std::string &status);
+    void InsertBorrow(UserID reader_id, const CopyID &copy_id, int days);
+    void DeleteBorrow(const CopyID &copy_id);
+    void DeleteRequest(UserID reader_id, const CopyID &copy_id);
+
     typedef std::unique_ptr<sql::PreparedStatement> Statement;
     std::unique_ptr<sql::Connection> connection_;
 };

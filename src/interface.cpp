@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
 
@@ -9,11 +10,16 @@
 
 namespace {
 
+void ClearScreen()
+{
+    std::system("clear");
+}
+
 std::string ReadLine(const std::string &promt)
 {
     std::cout << promt;
     std::string line;
-    if (!std::getline(std::cin, line) || std::cin.eof())
+    if (!std::getline(std::cin, line))
     {
         throw library_manager::Context::ExitProgram(1);
     }
@@ -36,8 +42,9 @@ void ShowThisCopy(int index, sql::ResultSet *copies)
 
     cout.width(2);
     cout << index << ". " << copies->getString("title")
-         << "\n  条形码: " << copies->getString("id")
-         << "\n  到期时间: " << copies->getString("due_date");
+         << "\n  条形码: " << copies->getString("id");
+    if (!copies->isNull("due_date"))
+         cout << "\n  到期时间: " << copies->getString("due_date");
     int request_num = copies->getInt("request_num");
     if (request_num)
     {
@@ -78,7 +85,7 @@ Choice GetChoice(const std::string &chars, int max_index, int &choice)
         try  // try to treat it as an index
         {
             int index = boost::lexical_cast<int>(line);
-            if (index >= 1 || index <= max_index)
+            if (index >= 1 && index <= max_index)
             {
                 choice = index;
                 return Choice::INDEX;
@@ -92,14 +99,62 @@ Choice GetChoice(const std::string &chars, int max_index, int &choice)
     }
 }
 
+int GetChoice(const std::string &chars)
+{
+    int choice;
+    GetChoice(chars, 0, choice);
+    return choice;
+}
+
+bool ShowCopyBasicInfo(const library_manager::CopyID &copy_id)
+{
+    using std::cout;
+    using std::endl;
+
+    auto copy = library_manager::DatabaseProxy::Instance()->CopyInfo(copy_id);
+    if (!copy->next())
+        return false;
+
+    cout << copy->getString("id") << "    "
+         << copy->getString("title") << endl;
+    return true;
+}
+
 }  // namespace
 
 namespace library_manager {
 
 void Interface::WelcomeScreen(Context *context)
 {
+    // Clear current context
+    context->set_interface(Interface::Instance());
+    context->set_user_id(UserID());
+    context->set_keyword("");
+    context->set_current_book(ISBN());
+
+    ClearScreen();
     // TODO: set different mode for reader login / admin login / lookup
-    std::cout << "欢迎来到图书馆管理系统\n";
+    std::cout <<
+"==============================================================\n"
+"|                   欢迎来到图书馆管理系统                   |\n"
+"|                            v0.9                            |\n"
+"==============================================================\n"
+"\n"
+"[l] 登陆                 [e] 查询书籍                 [q] 退出\n";
+
+    int choice = GetChoice("leq");
+
+    if (choice == 'l')
+        context->set_state(&Interface::Login);
+    else if (choice == 'e')
+        context->set_state(&Interface::Query);
+    else  // quit
+        throw Context::ExitProgram(0);
+}
+
+void Interface::Login(Context *context)
+{
+    ClearScreen();
 
     UserID user_id;
     User user;
@@ -130,10 +185,37 @@ void Interface::WelcomeScreen(Context *context)
     std::cout << "登陆成功\n";
 }
 
+void Interface::MainMenu(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::BorrowBook(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::RequestBook(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::ReturnBook(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::GetRequested(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
 void Interface::Query(Context *context)
 {
     using std::cout;
     using std::endl;
+
+    ClearScreen();
 
     if (context->keyword().empty())
     {
@@ -171,7 +253,10 @@ void Interface::Query(Context *context)
     if (GetChoice("rq", index - 1, choice) == Choice::CHAR)
     {
         if (choice == 'r')
+        {
+            context->set_keyword("");
             return;  // state need not to change
+        }
         else
             context->set_state(&Interface::MainMenu);
     }
@@ -186,6 +271,8 @@ void Interface::ShowBook(Context *context)
 {
     using std::cout;
     using std::endl;
+
+    ClearScreen();
 
     {  // book info
         auto book_info =
@@ -215,8 +302,9 @@ void Interface::ShowBook(Context *context)
         while (copy_info->next())
         {
             cout << copy_info->getString("id") << "    "
-                 << copy_info->getString("status") << "    "
-                 << copy_info->getString("due_date");
+                 << copy_info->getString("status") << "    ";
+            if (!copy_info->isNull("due_date"))
+                 cout << copy_info->getString("due_date");
             int request_num = copy_info->getInt("request_num");
             if (request_num)
             {
@@ -228,8 +316,7 @@ void Interface::ShowBook(Context *context)
     }
 
     cout << "\n[e] 查询界面          [m] 主菜单\n";
-    int choice;
-    GetChoice("em", 0, choice);
+    int choice = GetChoice("em");
     if (choice == 'e')
     {
         context->set_state(&Interface::Query);
@@ -270,6 +357,8 @@ void ReaderInterface::MainMenu(Context *context)
     using std::cout;
     using std::endl;
 
+    ClearScreen();
+
     user_id_ = context->user_id();  // update user_id
 
     ShowReaderInfo();
@@ -285,15 +374,12 @@ void ReaderInterface::MainMenu(Context *context)
     {
         if (choice == 'e')
         {
-            context->set_current_book(ISBN());
             context->set_state(&Interface::Query);
             return;
         }
         else  // choice == 'q'
         {
             context->set_state(&Interface::WelcomeScreen);
-            context->set_current_book(ISBN());
-            context->set_user_id(UserID());
             return;
         }
     }
@@ -382,6 +468,100 @@ void ReaderInterface::ShowRequested()
 // AdminInterface
 void AdminInterface::MainMenu(Context *context)
 {
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    cout << "欢迎你, 管理员 " << context->user_id() << "\n\n"
+            "[b] 借出书籍          [r] 归还书籍\n"
+            "[g] 预约取书          [q] 退出\n";
+
+    int choice = GetChoice("brgq");
+    switch (choice)
+    {
+        case 'b': context->set_state(&Interface::BorrowBook); break;
+        case 'r': context->set_state(&Interface::ReturnBook); break;
+        case 'g': context->set_state(&Interface::GetRequested); break;
+        case 'q': context->set_state(&Interface::WelcomeScreen); break;
+    }
+}
+
+void AdminInterface::BorrowBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    UserID reader_id = ReadUserID("请输入读者ID: ");
+    CopyID copy_id = ReadLine("请输入要借出书籍的条形码: ");
+
+    if (DatabaseProxy::Instance()->BorrowCopy(reader_id, copy_id))
+    {
+        ShowCopyBasicInfo(copy_id);
+        cout << "借阅成功\n";
+    }
+    else
+    {
+        cout << "借阅失败\n";
+    }
+
+    cout << "\n[c] 继续          [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else nothing need to be done
+}
+
+void AdminInterface::ReturnBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    CopyID copy_id = ReadLine("请输入要归还书籍的条形码: ");
+    if (DatabaseProxy::Instance()->ReturnCopy(copy_id))
+    {
+        ShowCopyBasicInfo(copy_id);
+        cout << "归还成功\n";
+    }
+    else
+    {
+        cout << "归还失败\n";
+    }
+
+    cout << "\n[c] 继续          [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else nothing need to be done
+}
+void AdminInterface::GetRequested(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    UserID reader_id = ReadUserID("请输入读者ID: ");
+    CopyID copy_id = ReadLine("请输入要领取预约书籍的条形码: ");
+    if (DatabaseProxy::Instance()->GetRequested(reader_id, copy_id))
+    {
+        ShowCopyBasicInfo(copy_id);
+        cout << "领取成功\n";
+    }
+    else
+    {
+        cout << "领取失败\n";
+    }
+
+    cout << "\n[c] 继续          [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else nothing need to be done
 }
 
 AdminInterface * AdminInterface::Instance()

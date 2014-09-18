@@ -1,18 +1,18 @@
 CXX = g++
-CXXFLAGS = -g -c -std=c++11 -Wall -Wextra
+CXXFLAGS = -c -std=c++11 -Wall -Wextra
 OBJS = obj/main.o obj/command_line_interface.o obj/context.o obj/database_proxy.o obj/interface.o
 
 bin/sam: $(OBJS) | bin
-	g++ -g -o $@ $(OBJS) -lmysqlcppconn
+	$(CXX) -g -o $@ $(OBJS) -lmysqlcppconn
 
 obj/main.o: src/main.cpp src/context.h | obj
-	g++ $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 obj/command_line_interface.o: src/command_line_interface.cpp src/command_line_interface.h | obj
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 obj/context.o: src/context.cpp src/context.h src/interface.h | obj
-	g++ $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 obj/database_proxy.o: src/database_proxy.cpp src/database_proxy.h | obj
 	$(CXX) $(CXXFLAGS) -o $@ $<

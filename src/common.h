@@ -13,6 +13,8 @@ typedef std::uint_least64_t PhoneNum;
 typedef std::string CallNum;
 enum class User { READER, ADMIN };
 
+const int kLoanPeriod = 90;
+
 }  // namespace library_manager
 
 #endif  // COMMON_H_
