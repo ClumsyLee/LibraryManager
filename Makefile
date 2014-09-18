@@ -3,7 +3,7 @@ CXXFLAGS = -c -std=c++11 -Wall -Wextra
 OBJS = obj/main.o obj/command_line_interface.o obj/context.o obj/database_proxy.o obj/interface.o obj/utility.o
 
 bin/sam: $(OBJS) | bin
-	$(CXX) -g -o $@ $(OBJS) -lmysqlcppconn
+	$(CXX) -g -o $@ $(OBJS) -lmysqlcppconn -lssl -lcrypto
 
 obj/main.o: src/main.cpp src/context.h | obj
 	$(CXX) $(CXXFLAGS) -o $@ $<
