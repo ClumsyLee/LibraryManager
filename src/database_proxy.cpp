@@ -1,24 +1,84 @@
+#include <fstream>
+#include <sstream>
 #include <vector>
 
 #include <openssl/evp.h>
+
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/resultset.h>
 #include <cppconn/prepared_statement.h>
+
 #include "database_proxy.h"
 
 namespace {
 
-std::string HashPassword(const std::string &password,
-                         const std::string &salt)
+const int kIterations = 100000;
+const int kKeyLen = 64;
+
+typedef std::basic_string<unsigned char> BinString;
+
+BinString Hex2Bin(const std::string &hex)
 {
-    return password;
+    BinString bin;
+
+    std::istringstream iss;
+    iss >> std::hex;
+
+    int size = hex.size();
+    for (int i = 0; i < size; i += 2)
+    {
+        iss.clear();
+        iss.str(hex.substr(i, 2));
+        unsigned num;
+        iss >> num;
+        bin.push_back(num);
+    }
+    return bin;
 }
 
-// std::string GetRandomSalt(std::size_t bytes)
-// {
-//     return std::string();
-// }
+std::string Bin2Hex(const BinString &bin)
+{
+    std::ostringstream oss;
+    oss << std::hex;
+    oss.fill('0');
+    for (unsigned num : bin)
+    {
+        oss.width(2);
+        oss << num;
+    }
+    return oss.str();
+}
+
+int PBKDF2_HMAC_SHA_512(const std::string &password, const BinString &salt,
+                        int iterations, int key_len, BinString &out)
+{
+    out.resize(key_len);
+    return PKCS5_PBKDF2_HMAC(password.c_str(), password.size(),
+                             salt.data(), salt.size(),
+                             iterations, EVP_sha512(), key_len, &out[0]);
+}
+
+std::string HashPassword(const std::string &password,
+                         const BinString &salt)
+{
+    BinString hashed_password;
+    hashed_password.resize(kKeyLen);
+    PBKDF2_HMAC_SHA_512(password, salt, kIterations, kKeyLen, hashed_password);
+    return Bin2Hex(hashed_password);
+}
+
+BinString GetRandomSalt(std::size_t bytes)
+{
+    BinString random_bytes;
+    random_bytes.resize(bytes);
+    std::ifstream fin("/dev/random");
+    if (!fin.is_open())
+        throw std::runtime_error("Cannot open /dev/random");
+
+    fin.read(reinterpret_cast<char *>(&random_bytes[0]), bytes);
+    return std::move(random_bytes);
+}
 
 
 }  // namespace
@@ -58,7 +118,8 @@ bool DatabaseProxy::Login(UserID user_id, const std::string &password,
 
     // query
     login->setUInt(1, user_id);
-    login->setString(2, HashPassword(password, salt_result->getString(1)));
+    login->setString(2, HashPassword(password,
+                                     Hex2Bin(salt_result->getString(1))));
     QueryResult login_result(login->executeQuery());
     if (!login_result->next())  // login failed
     {

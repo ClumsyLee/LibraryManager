@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <string>
 #include <iostream>
-#include <sstream>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
@@ -102,6 +101,5 @@ int GetChoice(const std::string &chars)
     GetChoice(chars, 0, choice);
     return choice;
 }
-
 
 }  // namespace library_manager
