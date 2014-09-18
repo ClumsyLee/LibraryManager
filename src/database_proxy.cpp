@@ -59,12 +59,14 @@ int PBKDF2_HMAC_SHA_512(const std::string &password, const BinString &salt,
                              iterations, EVP_sha512(), key_len, &out[0]);
 }
 
-std::string HashPassword(const std::string &password,
-                         const BinString &salt)
+std::string HashPassword(const std::string &password, const BinString &salt)
 {
     BinString hashed_password;
     hashed_password.resize(kKeyLen);
-    PBKDF2_HMAC_SHA_512(password, salt, kIterations, kKeyLen, hashed_password);
+    if (!PBKDF2_HMAC_SHA_512(password, salt, kIterations, kKeyLen,
+                             hashed_password))
+        throw std::runtime_error("PBKDF2_HMAC_SHA_512 failed\n");
+
     return Bin2Hex(hashed_password);
 }
 
