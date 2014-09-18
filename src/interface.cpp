@@ -184,7 +184,10 @@ void Interface::WelcomeScreen(Context *context)
 
 void Interface::Login(Context *context)
 {
+    using std::cout;
+
     ClearScreen();
+    cout << "============================ 登陆 ============================\n";
 
     UserID user_id;
     User user;
@@ -212,7 +215,7 @@ void Interface::Login(Context *context)
     // Login successful, entering main menu.
     context->set_state(&Interface::MainMenu);
     context->set_user_id(user_id);
-    std::cout << "登陆成功\n";
+    cout << "登陆成功\n";
 }
 
 void Interface::MainMenu(Context *context)
@@ -236,6 +239,7 @@ void Interface::ReturnBook(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "========================== 还书 ==========================\n";
 
     CopyID copy_id = ReadLine("请输入要归还书籍的条形码: ");
     if (DatabaseProxy::Instance()->ReturnCopy(copy_id))
@@ -266,6 +270,7 @@ void Interface::Query(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "========================== 查询书籍 ==========================\n";
 
     if (context->keyword().empty())
     {
@@ -408,6 +413,7 @@ void ReaderInterface::MainMenu(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "=========================== 主菜单 ===========================\n";
 
     user_id_ = context->user_id();  // update user_id
 
@@ -453,6 +459,7 @@ void ReaderInterface::BorrowBook(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "============================ 借书 ============================\n";
 
     CopyID copy_id = ReadLine("请输入要借出副本的条形码: ");
     auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
@@ -494,6 +501,7 @@ void ReaderInterface::RequestBook(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "========================== 预约图书 ==========================\n";
 
     CopyID copy_id = ReadLine("请输入要预约副本的条形码: ");
     auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
@@ -508,7 +516,7 @@ void ReaderInterface::RequestBook(Context *context)
     else  // able to request
     {
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要借出该副本吗? (y/n): "))
+        if (YesOrNo("确定要预约该副本吗? (y/n): "))
         {
             if (DatabaseProxy::Instance()->RequestCopy(context->user_id(),
                                                        copy_id))
@@ -533,6 +541,9 @@ void ReaderInterface::GetRequested(Context *context)
 {
     using std::cout;
     using std::endl;
+
+    ClearScreen();
+    cout << "======================== 取回预约图书 ========================\n";
 
     std::vector<CopyID> request_list;
     int index = 1;
@@ -660,6 +671,7 @@ void AdminInterface::MainMenu(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "=========================== 主菜单 ===========================\n";
 
     cout << "欢迎你, 管理员 " << context->user_id() << "\n\n"
             "[b] 借出书籍          [r] 归还书籍\n"
@@ -681,6 +693,7 @@ void AdminInterface::BorrowBook(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "============================ 借书 ============================\n";
 
     UserID reader_id = ReadUserID("请输入读者ID: ");
     CopyID copy_id = ReadLine("请输入要借出书籍的条形码: ");
@@ -708,6 +721,7 @@ void AdminInterface::GetRequested(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << "========================== 预约取书 ==========================\n";
 
     UserID reader_id = ReadUserID("请输入读者ID: ");
     CopyID copy_id = ReadLine("请输入要领取预约书籍的条形码: ");
