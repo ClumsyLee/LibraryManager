@@ -162,13 +162,12 @@ void Interface::WelcomeScreen(Context *context)
     ClearScreen();
     // TODO: set different mode for reader login / admin login / lookup
     std::cout <<
-"==============================================================\n"
-"|                   欢迎来到图书馆管理系统                   |\n"
-"|                            v0.9                            |\n"
-"==============================================================\n"
+" ==============================================================\n"
+"|                    欢迎来到图书馆管理系统                    |\n"
+"|                             v0.9                             |\n"
+" ==============================================================\n"
 "\n"
-"[l] 登陆                 [e] 查询书籍                 [r] 还书\n"
-"                           [q] 退出\n";
+"[l] 登陆           [e] 查询书籍       [r] 还书           [q] 退出\n";
 
     int choice = GetChoice("lerq");
 
@@ -187,7 +186,7 @@ void Interface::Login(Context *context)
     using std::cout;
 
     ClearScreen();
-    cout << "============================ 登陆 ============================\n";
+    cout << " ============================ 登陆 ============================\n";
 
     UserID user_id;
     User user;
@@ -239,7 +238,7 @@ void Interface::ReturnBook(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "========================== 还书 ==========================\n";
+    cout << " ========================== 还书 ==========================\n";
 
     CopyID copy_id = ReadLine("请输入要归还书籍的条形码: ");
     if (DatabaseProxy::Instance()->ReturnCopy(copy_id))
@@ -252,7 +251,7 @@ void Interface::ReturnBook(Context *context)
         cout << "归还失败\n";
     }
 
-    cout << "\n[c] 继续          [m] 主菜单\n";
+    cout << "\n[c] 继续                            [m] 主菜单\n";
     int choice = GetChoice("cm");
     if (choice == 'm')
         context->set_state(&Interface::MainMenu);
@@ -270,7 +269,7 @@ void Interface::Query(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "========================== 查询书籍 ==========================\n";
+    cout << " ========================== 查询书籍 ==========================\n";
 
     if (context->keyword().empty())
     {
@@ -302,10 +301,10 @@ void Interface::Query(Context *context)
     {
         cout << "[编号] 查看对应书籍的详细信息\n";
     }
-    cout << "[r] 重新查询          [q] 返回主菜单\n";
+    cout << "[r] 重新查询                              [m] 主菜单\n";
 
     int choice;
-    if (GetChoice("rq", index - 1, choice) == Choice::CHAR)
+    if (GetChoice("rm", index - 1, choice) == Choice::CHAR)
     {
         if (choice == 'r')
         {
@@ -328,6 +327,7 @@ void Interface::ShowBook(Context *context)
     using std::endl;
 
     ClearScreen();
+    cout << " ========================== 书籍信息 ==========================\n";
 
     {  // book info
         auto book_info =
@@ -370,7 +370,7 @@ void Interface::ShowBook(Context *context)
         }
     }
 
-    cout << "\n[e] 查询界面          [m] 主菜单\n";
+    cout << "\n[e] 查询界面                              [m] 主菜单\n";
     int choice = GetChoice("em");
     if (choice == 'e')
     {
@@ -413,7 +413,7 @@ void ReaderInterface::MainMenu(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "=========================== 主菜单 ===========================\n";
+    cout << " =========================== 主菜单 ===========================\n";
 
     user_id_ = context->user_id();  // update user_id
 
@@ -422,20 +422,20 @@ void ReaderInterface::MainMenu(Context *context)
     ShowRequested();
 
     cout << "[编号] 查看对应书籍的详细信息\n"
-            "[e] 进入查询界面             [b] 借书\n"
-            "[g] 预约取书                 [r] 预约\n"
-            "[q] 退出\n";
+            "[e] 查询书籍       [b] 借书           [r] 预约           [t] 还书\n"
+            "[g] 预约取书                                             [q] 退出\n";
 
     int choice;
-    if (GetChoice("ebgrq", borrowed_.size() + requested_.size(), choice)
+    if (GetChoice("ebrtgq", borrowed_.size() + requested_.size(), choice)
                 == Choice::CHAR)
     {
         switch (choice)
         {
             case 'e': context->set_state(&Interface::Query); break;
             case 'b': context->set_state(&Interface::BorrowBook); break;
-            case 'g': context->set_state(&Interface::GetRequested); break;
             case 'r': context->set_state(&Interface::RequestBook); break;
+            case 't': context->set_state(&Interface::ReturnBook); break;
+            case 'g': context->set_state(&Interface::GetRequested); break;
             case 'q': context->set_state(&Interface::WelcomeScreen); break;
         }
     }
@@ -459,7 +459,7 @@ void ReaderInterface::BorrowBook(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "============================ 借书 ============================\n";
+    cout << " ============================ 借书 ============================\n";
 
     CopyID copy_id = ReadLine("请输入要借出副本的条形码: ");
     auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
@@ -501,7 +501,7 @@ void ReaderInterface::RequestBook(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "========================== 预约图书 ==========================\n";
+    cout << " ========================== 预约图书 ==========================\n";
 
     CopyID copy_id = ReadLine("请输入要预约副本的条形码: ");
     auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
@@ -543,7 +543,7 @@ void ReaderInterface::GetRequested(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "======================== 取回预约图书 ========================\n";
+    cout << " ======================== 取回预约图书 ========================\n";
 
     std::vector<CopyID> request_list;
     int index = 1;
@@ -671,7 +671,7 @@ void AdminInterface::MainMenu(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "=========================== 主菜单 ===========================\n";
+    cout << " =========================== 主菜单 ===========================\n";
 
     cout << "欢迎你, 管理员 " << context->user_id() << "\n\n"
             "[b] 借出书籍          [r] 归还书籍\n"
@@ -693,7 +693,7 @@ void AdminInterface::BorrowBook(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "============================ 借书 ============================\n";
+    cout << " ============================ 借书 ============================\n";
 
     UserID reader_id = ReadUserID("请输入读者ID: ");
     CopyID copy_id = ReadLine("请输入要借出书籍的条形码: ");
@@ -721,7 +721,7 @@ void AdminInterface::GetRequested(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << "========================== 预约取书 ==========================\n";
+    cout << " ========================== 预约取书 ==========================\n";
 
     UserID reader_id = ReadUserID("请输入读者ID: ");
     CopyID copy_id = ReadLine("请输入要领取预约书籍的条形码: ");
