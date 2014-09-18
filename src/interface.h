@@ -43,6 +43,9 @@ class ReaderInterface : public Interface
     virtual ~ReaderInterface() = default;
 
     virtual void MainMenu(Context *context);
+    virtual void BorrowBook(Context *context);
+    virtual void RequestBook(Context *context);
+    virtual void GetRequested(Context *context);
 
     static ReaderInterface * Instance();
 
@@ -66,7 +69,6 @@ class AdminInterface : public Interface
 
     virtual void MainMenu(Context *context);
     virtual void BorrowBook(Context *context);
-    virtual void ReturnBook(Context *context);
     virtual void GetRequested(Context *context);
 
     static AdminInterface * Instance();

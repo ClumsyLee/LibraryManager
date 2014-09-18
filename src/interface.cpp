@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <cppconn/resultset.h>
 
@@ -28,12 +29,37 @@ std::string ReadLine(const std::string &promt)
 
 library_manager::UserID ReadUserID(const std::string &promt)
 {
-    return boost::lexical_cast<library_manager::UserID>(ReadLine(promt));
+    while (true)
+    {
+        try
+        {
+            return boost::lexical_cast<library_manager::UserID>(
+                    ReadLine(promt));
+        }
+        catch (boost::bad_lexical_cast &)
+        {
+            std::cout << "ID格式错误, 注意ID为纯数字\n";
+        }
+    }
 }
 
 std::string ReadPassword(const std::string &promt)
 {
     return ReadLine(promt);
+}
+
+bool YesOrNo(const std::string &promt)
+{
+    std::string line(ReadLine(promt));
+    while (true)
+    {
+        boost::to_lower(line);
+        if (line == "y" || line == "yes")
+            return true;
+        if (line == "n" || line == "no")
+            return false;
+        line.assign(ReadLine("请输入 y/n: "));
+    }
 }
 
 void ShowThisCopy(int index, sql::ResultSet *copies)
@@ -116,7 +142,8 @@ bool ShowCopyBasicInfo(const library_manager::CopyID &copy_id)
         return false;
 
     cout << copy->getString("id") << "    "
-         << copy->getString("title") << endl;
+         << copy->getString("title") << "    "
+         << copy->getString("call_num") << endl;
     return true;
 }
 
@@ -140,14 +167,17 @@ void Interface::WelcomeScreen(Context *context)
 "|                            v0.9                            |\n"
 "==============================================================\n"
 "\n"
-"[l] 登陆                 [e] 查询书籍                 [q] 退出\n";
+"[l] 登陆                 [e] 查询书籍                 [r] 还书\n"
+"                           [q] 退出\n";
 
-    int choice = GetChoice("leq");
+    int choice = GetChoice("lerq");
 
     if (choice == 'l')
         context->set_state(&Interface::Login);
     else if (choice == 'e')
         context->set_state(&Interface::Query);
+    else if (choice == 'r')
+        context->set_state(&Interface::ReturnBook);
     else  // quit
         throw Context::ExitProgram(0);
 }
@@ -202,7 +232,27 @@ void Interface::RequestBook(Context *context)
 
 void Interface::ReturnBook(Context *context)
 {
-    context->set_state(&Interface::WelcomeScreen);
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    CopyID copy_id = ReadLine("请输入要归还书籍的条形码: ");
+    if (DatabaseProxy::Instance()->ReturnCopy(copy_id))
+    {
+        ShowCopyBasicInfo(copy_id);
+        cout << "归还成功\n";
+    }
+    else
+    {
+        cout << "归还失败\n";
+    }
+
+    cout << "\n[c] 继续          [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else nothing need to be done
 }
 
 void Interface::GetRequested(Context *context)
@@ -366,21 +416,21 @@ void ReaderInterface::MainMenu(Context *context)
     ShowRequested();
 
     cout << "[编号] 查看对应书籍的详细信息\n"
-            "[e] 进入查询界面         [q] 退出\n";
+            "[e] 进入查询界面             [b] 借书\n"
+            "[g] 预约取书                 [r] 预约\n"
+            "[q] 退出\n";
 
     int choice;
-    if (GetChoice("eq", borrowed_.size() + requested_.size(), choice)
+    if (GetChoice("ebgrq", borrowed_.size() + requested_.size(), choice)
                 == Choice::CHAR)
     {
-        if (choice == 'e')
+        switch (choice)
         {
-            context->set_state(&Interface::Query);
-            return;
-        }
-        else  // choice == 'q'
-        {
-            context->set_state(&Interface::WelcomeScreen);
-            return;
+            case 'e': context->set_state(&Interface::Query); break;
+            case 'b': context->set_state(&Interface::BorrowBook); break;
+            case 'g': context->set_state(&Interface::GetRequested); break;
+            case 'r': context->set_state(&Interface::RequestBook); break;
+            case 'q': context->set_state(&Interface::WelcomeScreen); break;
         }
     }
     else  // an index
@@ -395,6 +445,144 @@ void ReaderInterface::MainMenu(Context *context)
         context->set_state(&Interface::ShowBook);
         return;
     }
+}
+
+void ReaderInterface::BorrowBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    CopyID copy_id = ReadLine("请输入要借出副本的条形码: ");
+    auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        cout << "不存在条形码为 " << copy_id << " 的副本\n";
+    }
+    else if (copy_info->getString("status") != "ON_SHELF")
+    {
+        cout << "该副本当前不在架上, 不能借出\n";
+    }
+    else  // able to borrow
+    {
+        ShowCopyBasicInfo(copy_id);
+        if (YesOrNo("确定要借出该副本吗? (y/n): "))
+        {
+            if (DatabaseProxy::Instance()->BorrowCopy(context->user_id(),
+                                                      copy_id))
+                cout << "借阅成功\n";
+            else
+                cout << "借阅失败\n";
+        }
+        else
+        {
+            cout << "取消了借出操作\n";
+        }
+    }
+
+    cout << "\n[c] 继续          [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else nothing need to be done
+}
+
+void ReaderInterface::RequestBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+
+    CopyID copy_id = ReadLine("请输入要预约副本的条形码: ");
+    auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        cout << "不存在条形码为 " << copy_id << " 的副本\n";
+    }
+    else if (copy_info->getString("status") != "LENT")
+    {
+        cout << "该副本未被借出, 不能预约\n";
+    }
+    else  // able to request
+    {
+        ShowCopyBasicInfo(copy_id);
+        if (YesOrNo("确定要借出该副本吗? (y/n): "))
+        {
+            if (DatabaseProxy::Instance()->RequestCopy(context->user_id(),
+                                                       copy_id))
+                cout << "预约成功\n";
+            else
+                cout << "预约失败\n";
+        }
+        else
+        {
+            cout << "取消了预约操作\n";
+        }
+    }
+
+    cout << "\n[c] 继续          [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else nothing need to be done
+}
+
+void ReaderInterface::GetRequested(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    std::vector<CopyID> request_list;
+    int index = 1;
+
+    auto proxy = DatabaseProxy::Instance();
+    for (const TempBook &pair : requested_)
+    {
+        if (proxy->AbleToGetRquested(context->user_id(), pair.second))
+            request_list.push_back(pair.second);
+    }
+
+    if (request_list.empty())
+    {
+        cout << "当前没有待取的副本\n";
+        context->set_state(&Interface::MainMenu);
+    }
+    else
+    {
+        cout << "当前可以取回的副本有:\n\n";
+        for (const CopyID &copy_id : request_list)
+        {
+            auto copy_info = proxy->CopyInfo(copy_id);
+            if (!copy_info->next())
+                continue;
+            ShowThisCopy(index++, copy_info.get());
+        }
+        cout << "[编号] 取回相应副本           ";
+    }
+
+    cout << "[m] 主菜单\n";
+    int choice;
+    if (GetChoice("m", index - 1, choice) == Choice::INDEX)
+    {
+        if (proxy->GetRequested(context->user_id(), request_list[choice - 1]))
+            cout << "取书成功\n";
+        else
+            cout << "取书失败\n";
+    }
+    else
+    {
+        // choice == 'm'
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    cout << "[c] 继续               [m] 主菜单\n";
+    choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else choice == 'c', nothing needs to be done
 }
 
 ReaderInterface * ReaderInterface::Instance()
@@ -514,30 +702,6 @@ void AdminInterface::BorrowBook(Context *context)
     // else nothing need to be done
 }
 
-void AdminInterface::ReturnBook(Context *context)
-{
-    using std::cout;
-    using std::endl;
-
-    ClearScreen();
-
-    CopyID copy_id = ReadLine("请输入要归还书籍的条形码: ");
-    if (DatabaseProxy::Instance()->ReturnCopy(copy_id))
-    {
-        ShowCopyBasicInfo(copy_id);
-        cout << "归还成功\n";
-    }
-    else
-    {
-        cout << "归还失败\n";
-    }
-
-    cout << "\n[c] 继续          [m] 主菜单\n";
-    int choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else nothing need to be done
-}
 void AdminInterface::GetRequested(Context *context)
 {
     using std::cout;

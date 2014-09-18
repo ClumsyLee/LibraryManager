@@ -50,6 +50,7 @@ class DatabaseProxy
 
     // Return true if succeed, false otherwise.
     bool BorrowCopy(UserID reader_id, const CopyID &copy_id);
+    bool AbleToGetRquested(UserID reader_id, const CopyID &copy_id);
     bool GetRequested(UserID reader_id, const CopyID &copy_id);
     bool ReturnCopy(const CopyID &copy_id);
     bool RequestCopy(UserID reader_id, const CopyID &copy_id);
@@ -60,6 +61,7 @@ class DatabaseProxy
  private:
     void UpdateCopyStatus(const CopyID &copy_id, const std::string &status);
     void InsertBorrow(UserID reader_id, const CopyID &copy_id, int days);
+    void InsertRequest(UserID reader_id, const CopyID &copy_id);
     void DeleteBorrow(const CopyID &copy_id);
     void DeleteRequest(UserID reader_id, const CopyID &copy_id);
 

@@ -147,6 +147,12 @@ DatabaseProxy::QueryResult DatabaseProxy::CopiesOfBook(ISBN isbn)
 
 bool DatabaseProxy::BorrowCopy(UserID reader_id, const CopyID &copy_id)
 {
+    if (!ReaderInfo(reader_id)->next())
+    {
+        std::cerr << "不存在ID为 " << reader_id << "的读者\n";
+        return false;
+    }
+
     auto copy_info = CopyInfo(copy_id);
     if (!copy_info->next())
     {
@@ -190,7 +196,7 @@ bool DatabaseProxy::ReturnCopy(const CopyID &copy_id)
     return true;
 }
 
-bool DatabaseProxy::GetRequested(UserID reader_id, const CopyID &copy_id)
+bool DatabaseProxy::AbleToGetRquested(UserID reader_id, const CopyID &copy_id)
 {
     static Statement requests_now(connection_->prepareStatement(
         "SELECT reader_id FROM Request WHERE copy_id=? ORDER BY time"));
@@ -203,8 +209,6 @@ bool DatabaseProxy::GetRequested(UserID reader_id, const CopyID &copy_id)
     }
     if (copy_info->getString("status") != "AT_LOAN_DESK")
     {
-        std::cerr << "条形码为 " << copy_id
-                  << " 的副本当前不在预约架上, 不能取书\n";
         return false;
     }
 
@@ -212,6 +216,14 @@ bool DatabaseProxy::GetRequested(UserID reader_id, const CopyID &copy_id)
     QueryResult request_status(requests_now->executeQuery());
     if (request_status->next() &&
         request_status->getUInt("reader_id") == reader_id)
+        return true;
+    else
+        return false;
+}
+
+bool DatabaseProxy::GetRequested(UserID reader_id, const CopyID &copy_id)
+{
+    if (AbleToGetRquested(reader_id, copy_id))
     {
         // success
         DeleteRequest(reader_id, copy_id);
@@ -221,15 +233,30 @@ bool DatabaseProxy::GetRequested(UserID reader_id, const CopyID &copy_id)
     }
     else
     {
-        std::cerr << "该读者不是当前可以取书的预约者\n";
         return false;
     }
 }
 
-// bool DatabaseProxy::RequestCopy(UserID reader_id, const CopyID &copy_id)
-// {
+bool DatabaseProxy::RequestCopy(UserID reader_id, const CopyID &copy_id)
+{
+    if (!ReaderInfo(reader_id)->next())
+    {
+        std::cerr << "不存在ID为 " << reader_id << "的读者\n";
+        return false;
+    }
 
-// }
+    auto copy_info = CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        std::cerr << "找不到条形码为 " << copy_id << " 的副本\n";
+        return false;
+    }
+    if (copy_info->getString("status") != "LENT")
+        return false;
+
+    InsertRequest(reader_id, copy_id);
+    return true;
+}
 
 void DatabaseProxy::UpdateCopyStatus(const CopyID &copy_id,
                                      const std::string &status)
@@ -254,6 +281,17 @@ void DatabaseProxy::InsertBorrow(UserID reader_id, const CopyID &copy_id,
     borrow->setInt(3, days);
     borrow->execute();
 }
+
+void DatabaseProxy::InsertRequest(UserID reader_id, const CopyID &copy_id)
+{
+    static Statement request(connection_->prepareStatement(
+        "INSERT INTO Request VALUES (?, ?, NOW())"));
+
+    request->setUInt(1, reader_id);
+    request->setString(2, copy_id);
+    request->execute();
+}
+
 
 void DatabaseProxy::DeleteBorrow(const CopyID &copy_id)
 {
