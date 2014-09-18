@@ -1,4 +1,4 @@
--- MySQL dump 10.13  Distrib 5.6.20, for osx10.8 (x86_64)
+-- MySQL dump 10.13  Distrib 5.6.20, for Linux (x86_64)
 --
 -- Host: localhost    Database: library
 -- ------------------------------------------------------
@@ -105,6 +105,24 @@ INSERT INTO `Copy` VALUES ('C2010095T',9787111165057,0,'LENT'),('C27415768',9787
 UNLOCK TABLES;
 
 --
+-- Temporary view structure for view `CopyInfo`
+--
+
+DROP TABLE IF EXISTS `CopyInfo`;
+/*!50001 DROP VIEW IF EXISTS `CopyInfo`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE VIEW `CopyInfo` AS SELECT 
+ 1 AS `id`,
+ 1 AS `title`,
+ 1 AS `isbn`,
+ 1 AS `call_num`,
+ 1 AS `status`,
+ 1 AS `due_date`,
+ 1 AS `request_num`*/;
+SET character_set_client = @saved_cs_client;
+
+--
 -- Table structure for table `Request`
 --
 
@@ -155,33 +173,15 @@ CREATE TABLE `User` (
 
 LOCK TABLES `User` WRITE;
 /*!40000 ALTER TABLE `User` DISABLE KEYS */;
-INSERT INTO `User` VALUES (1,'admin','1234','1234',1),(2013011187,'李思涵','1234','1234',0),(2013011188,'常增禄','1234','1234',0),(2013011189,'郭一隆','1234','1234',0);
+INSERT INTO `User` VALUES (1,'admin','8a4a49704582814952872966eed8ff9e902ce06c470b3dc79d9943c79a48591923620b213cf14c08a141c444b1643a3759597473bca4eea4bb83662538f5d0ff','9db9f19203136f553dc73ed50a31188e8a7012e02794569be7599fb2df4241e1807ff1ff4e3a4af32ff0219a252717957d9ff80a420095e6c05001d2b604bae3',1),(2013011187,'李思涵','4d51dc912acefde68e25d54e3d0e2667e67751f12e65256200fcfecd4eea4668e5c97d93f3f00086c92722504b1920fe0f796235c91258d6f871ab8785dbd691','ca5dd7a0f081942d0e82bf57988b451a240dad515e0f8a5d26d5840ba74f7d6cad6e61652f757d69c8bb51ef3c8a8cf4795e4abe65ff96bef18b545315d10b2b',0),(2013011188,'常增禄','60b97991085938a57caf0bdadfa20e92c06ec0c28470f7468da0bc9a5d3d33218975e5d6fbfe809bacd6fa6ee5d42e216cd27419a494a9fcd84e1a13761c1523','36cd484aa0bf5959ab438b1c6d6449d9f6b95963bf8bc8e08095ffc480947b59ed6ca06cd8a51d740965de00b8e723a5d3d7c0be5077a2e80bd85f6674a22ffb',0),(2013011189,'郭一隆','76a6a8d0d19ea87f2ef28b16a24a4d96b4a87bfe2b7fdd0c9dc21dacb9476380b12b10d84050329911d5ad8af54adf897140902da7164b53f4b53a4862eed42b','9a24cb9d43d2636d1fb35c485d4013d4772af6f8f47b8c299110a5a5b5d99248f728ff4bc5c4174d62fe44af846a421164a999ab6c4222e80b3ad4c4093d5e5c',0);
 /*!40000 ALTER TABLE `User` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
--- Temporary view structure for view `copyinfo`
+-- Final view structure for view `CopyInfo`
 --
 
-DROP TABLE IF EXISTS `copyinfo`;
-/*!50001 DROP VIEW IF EXISTS `copyinfo`*/;
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-/*!50001 CREATE VIEW `copyinfo` AS SELECT 
- 1 AS `id`,
- 1 AS `title`,
- 1 AS `isbn`,
- 1 AS `call_num`,
- 1 AS `status`,
- 1 AS `due_date`,
- 1 AS `request_num`*/;
-SET character_set_client = @saved_cs_client;
-
---
--- Final view structure for view `copyinfo`
---
-
-/*!50001 DROP VIEW IF EXISTS `copyinfo`*/;
+/*!50001 DROP VIEW IF EXISTS `CopyInfo`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -190,7 +190,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = utf8_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`thomas`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `copyinfo` AS select `Copy`.`id` AS `id`,`Book`.`title` AS `title`,`Book`.`isbn` AS `isbn`,`Book`.`call_num` AS `call_num`,`Copy`.`status` AS `status`,`Borrow`.`due_date` AS `due_date`,count(`Request`.`reader_id`) AS `request_num` from (((`Copy` join `Book` on((`Copy`.`isbn` = `Book`.`isbn`))) left join `Borrow` on((`Borrow`.`copy_id` = `Copy`.`id`))) left join `Request` on((`Request`.`copy_id` = `Copy`.`id`))) group by `Copy`.`id` */;
+/*!50001 VIEW `CopyInfo` AS select `Copy`.`id` AS `id`,`Book`.`title` AS `title`,`Book`.`isbn` AS `isbn`,`Book`.`call_num` AS `call_num`,`Copy`.`status` AS `status`,`Borrow`.`due_date` AS `due_date`,count(`Request`.`reader_id`) AS `request_num` from (((`Copy` join `Book` on((`Copy`.`isbn` = `Book`.`isbn`))) left join `Borrow` on((`Borrow`.`copy_id` = `Copy`.`id`))) left join `Request` on((`Request`.`copy_id` = `Copy`.`id`))) group by `Copy`.`id` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -204,4 +204,4 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-09-18 20:01:21
+-- Dump completed on 2014-09-19  4:24:16
