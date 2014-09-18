@@ -5,6 +5,15 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+
+#ifndef USE_TERMIOS_FOR_PASSWORD_INPUT
+#define USE_TERMIOS_FOR_PASSWORD_INPUT
+#endif
+
+#include <termios.h>
+#endif
+
 #include "utility.h"
 #include "common.h"
 
@@ -45,7 +54,20 @@ UserID ReadUserID(const std::string &promt)
 
 std::string ReadPassword(const std::string &promt)
 {
+#ifdef USE_TERMIOS_FOR_PASSWORD_INPUT
+    termios old_flags;
+    tcgetattr(STDIN_FILENO, &old_flags);
+    termios new_flgs = old_flags;
+    new_flgs.c_lflag &= ~ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_flgs);
+
+    std::string line(ReadLine(promt));
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_flags);
+    return line;
+#else
     return ReadLine(promt);
+#endif
 }
 
 bool YesOrNo(const std::string &promt)
