@@ -13,15 +13,6 @@ class Context
 {
  public:
     typedef void (Interface::*State)(Context *);
-    class ExitProgram : public std::exception
-    {
-     public:
-        explicit ExitProgram(int return_value)
-            : return_value_(return_value) {}
-        int return_value() const { return return_value_; }
-     private:
-        int return_value_;
-    };
 
     Context();
 

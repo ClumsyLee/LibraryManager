@@ -1,66 +1,14 @@
-#include <cstdlib>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include <cppconn/resultset.h>
 
 #include "context.h"
 #include "database_proxy.h"
 #include "interface.h"
+#include "utility.h"
 
 namespace {
-
-void ClearScreen()
-{
-    std::system("clear");
-}
-
-std::string ReadLine(const std::string &promt)
-{
-    std::cout << promt;
-    std::string line;
-    if (!std::getline(std::cin, line))
-    {
-        throw library_manager::Context::ExitProgram(1);
-    }
-    return line;
-}
-
-library_manager::UserID ReadUserID(const std::string &promt)
-{
-    while (true)
-    {
-        try
-        {
-            return boost::lexical_cast<library_manager::UserID>(
-                    ReadLine(promt));
-        }
-        catch (boost::bad_lexical_cast &)
-        {
-            std::cout << "ID格式错误, 注意ID为纯数字\n";
-        }
-    }
-}
-
-std::string ReadPassword(const std::string &promt)
-{
-    return ReadLine(promt);
-}
-
-bool YesOrNo(const std::string &promt)
-{
-    std::string line(ReadLine(promt));
-    while (true)
-    {
-        boost::to_lower(line);
-        if (line == "y" || line == "yes")
-            return true;
-        if (line == "n" || line == "no")
-            return false;
-        line.assign(ReadLine("请输入 y/n: "));
-    }
-}
 
 void ShowThisCopy(int index, sql::ResultSet *copies)
 {
@@ -88,48 +36,6 @@ void ShowThisBook(int index, sql::ResultSet *books)
     cout << index << ". " << books->getString("title")
          << "\n    " << books->getString("author")
          << "\n    " << books->getString("imprint") << std::endl;
-}
-
-
-enum Choice { CHAR, INDEX };
-Choice GetChoice(const std::string &chars, int max_index, int &choice)
-{
-    using std::cout;
-
-    while (true)
-    {
-        std::string line = ReadLine(":");
-        if (line.size() == 1)
-        {
-            char ch = line[0];
-            if (chars.find(ch) != chars.npos)
-            {
-                choice = ch;
-                return Choice::CHAR;
-            }
-        }
-        try  // try to treat it as an index
-        {
-            int index = boost::lexical_cast<int>(line);
-            if (index >= 1 && index <= max_index)
-            {
-                choice = index;
-                return Choice::INDEX;
-            }
-        }
-        catch (const boost::bad_lexical_cast &)
-        {
-        }
-        // failed to get choich, read line again
-        cout << "无效的输入\n";
-    }
-}
-
-int GetChoice(const std::string &chars)
-{
-    int choice;
-    GetChoice(chars, 0, choice);
-    return choice;
 }
 
 bool ShowCopyBasicInfo(const library_manager::CopyID &copy_id)
@@ -178,7 +84,7 @@ void Interface::WelcomeScreen(Context *context)
     else if (choice == 'r')
         context->set_state(&Interface::ReturnBook);
     else  // quit
-        throw Context::ExitProgram(0);
+        throw ExitProgram(0);
 }
 
 void Interface::Login(Context *context)
@@ -421,9 +327,10 @@ void ReaderInterface::MainMenu(Context *context)
     ShowBorrowed();
     ShowRequested();
 
-    cout << "[编号] 查看对应书籍的详细信息\n"
-            "[e] 查询书籍       [b] 借书           [r] 预约           [t] 还书\n"
-            "[g] 预约取书                                             [q] 退出\n";
+    cout <<
+"[编号] 查看对应书籍的详细信息\n"
+"[e] 查询书籍       [b] 借书           [r] 预约           [t] 还书\n"
+"[g] 预约取书                                             [q] 退出\n";
 
     int choice;
     if (GetChoice("ebrtgq", borrowed_.size() + requested_.size(), choice)
