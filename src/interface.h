@@ -29,8 +29,16 @@ class Interface
     virtual void RequestBook(Context *context);
     virtual void ReturnBook(Context *context);
     virtual void GetRequested(Context *context);
+    virtual void ChangePassword(Context *context);
+
+    virtual void ShowUser(Context *context);
+    virtual void CreateUser(Context *context);
+    virtual void DeleteUser(Context *context);
 
     static Interface * Instance();
+
+ protected:
+    void ContinueOrMainMenu(Context *context);
 
  private:
     static void GetValidUser(UserID &user_id, User &user);
@@ -68,10 +76,19 @@ class AdminInterface : public Interface
     virtual ~AdminInterface() = default;
 
     virtual void MainMenu(Context *context);
-    virtual void BorrowBook(Context *context);
-    virtual void GetRequested(Context *context);
+    virtual void ShowUser(Context *context);
+    virtual void CreateUser(Context *context);
+    virtual void DeleteUser(Context *context);
+
 
     static AdminInterface * Instance();
+};
+
+class AdminReaderInterface: public AdminInterface, public ReaderInterface
+{
+ public:
+
+    static AdminReaderInterface * Instance();
 };
 
 }  // namespace library_manager

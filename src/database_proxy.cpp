@@ -110,7 +110,7 @@ bool DatabaseProxy::Login(UserID user_id, const std::string &password,
     static Statement get_salt(connection_->prepareStatement(
         "SELECT salt FROM User WHERE id=?"));
     static Statement login(connection_->prepareStatement(
-        "SELECT is_admin FROM User WHERE id=? AND password=?"));
+        "SELECT admin_priv, reader_priv FROM User WHERE id=? AND password=?"));
 
     // get salt
     get_salt->setUInt(1, user_id);
@@ -129,12 +129,40 @@ bool DatabaseProxy::Login(UserID user_id, const std::string &password,
     }
     else
     {
-        if (login_result->getBoolean(1))  // is admin
-            user = User::ADMIN;
+        if (login_result->getBoolean("admin_priv"))  // is admin
+        {
+            if (login_result->getBoolean("reader_priv"))
+                user = User::ADMIN_READER;
+            else
+                user = User::ADMIN;
+        }
         else
             user = User::READER;
         return true;
     }
+}
+
+bool DatabaseProxy::ChangePassword(UserID user_id,
+                                   const std::string &old_password,
+                                   const std::string &new_password)
+{
+    static Statement change_password(connection_->prepareStatement(
+        "UPDATE User SET salt=?, password=? WHERE id=?"));
+
+    User user;
+    if (!Login(user_id, old_password, user))
+    {
+        std::cout << "原密码错误\n";
+        return false;
+    }
+    change_password->setUInt(3, user_id);
+
+    BinString salt(GetRandomSalt(kKeyLen));
+    change_password->setString(1, Bin2Hex(salt));
+    change_password->setString(2, HashPassword(new_password, salt));
+
+    change_password->execute();
+    return true;
 }
 
 DatabaseProxy::QueryResult DatabaseProxy::ReaderInfo(UserID reader_id)
@@ -321,6 +349,35 @@ bool DatabaseProxy::RequestCopy(UserID reader_id, const CopyID &copy_id)
     return true;
 }
 
+bool DatabaseProxy::CreateUser(User type, UserID user_id,
+                               const std::string &name,
+                               const std::string &password)
+{
+    if (ReaderInfo(user_id)->next())
+    {
+        std::cerr << "已存在ID为 " << user_id << " 的用户\n";
+        return false;
+    }
+
+    BinString salt = GetRandomSalt(kKeyLen);
+    InsertUser(type, user_id, name, HashPassword(password, salt),
+               Bin2Hex(salt));
+    return true;
+}
+
+bool DatabaseProxy::DeleteUser(UserID user_id)
+{
+    if (!ReaderInfo(user_id)->next())
+    {
+        std::cerr << "不存在ID为 " << user_id << " 的用户\n";
+        return false;
+    }
+
+    DeleteUserFromTable(user_id);
+    return true;
+}
+
+
 void DatabaseProxy::UpdateCopyStatus(const CopyID &copy_id,
                                      const std::string &status)
 {
@@ -373,6 +430,36 @@ void DatabaseProxy::DeleteRequest(UserID reader_id, const CopyID &copy_id)
     delete_request->setString(1, copy_id);
     delete_request->setUInt(2, reader_id);
     delete_request->execute();
+}
+
+void DatabaseProxy::InsertUser(User type, UserID user_id,
+                               const std::string &name,
+                               const std::string &password,
+                               const std::string &salt)
+{
+    static Statement insert_user(connection_->prepareStatement(
+        "INSERT INTO User VALUES (?, ?, ?, ?, ?, ?)"));
+
+    insert_user->setUInt(1, user_id);
+    insert_user->setString(2, name);
+    insert_user->setString(3, password);
+    insert_user->setString(4, salt);
+
+    insert_user->setBoolean(5 , (type == User::ADMIN ||
+                                 type == User::ADMIN_READER));
+    insert_user->setBoolean(6, (type == User::READER ||
+                                type == User::ADMIN_READER));
+
+    insert_user->execute();
+}
+
+void DatabaseProxy::DeleteUserFromTable(UserID user_id)
+{
+    static Statement delete_user(connection_->prepareStatement(
+        "DELETE FROM User WHERE id=?"));
+
+    delete_user->setUInt(1, user_id);
+    delete_user->execute();
 }
 
 

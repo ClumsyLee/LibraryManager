@@ -8,6 +8,8 @@ namespace library_manager {
 
 enum Choice { CHAR, INDEX };
 
+const UserID kInvalidUserID = 0;
+
 void ClearScreen();
 
 // readline
@@ -19,6 +21,7 @@ std::string ReadPassword(const std::string &promt);
 bool YesOrNo(const std::string &promt);
 Choice GetChoice(const std::string &chars, int max_index, int &choice);
 int GetChoice(const std::string &chars);
+int GetChoice(int max_index);
 
 }  // namespace library_manager
 

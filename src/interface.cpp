@@ -66,7 +66,6 @@ void Interface::WelcomeScreen(Context *context)
     context->set_current_book(ISBN());
 
     ClearScreen();
-    // TODO: set different mode for reader login / admin login / lookup
     std::cout <<
 " ==============================================================\n"
 "|                    欢迎来到图书馆管理系统                    |\n"
@@ -138,6 +137,62 @@ void Interface::RequestBook(Context *context)
     context->set_state(&Interface::WelcomeScreen);
 }
 
+void Interface::ShowUser(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::CreateUser(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::DeleteUser(Context *context)
+{
+    context->set_state(&Interface::WelcomeScreen);
+}
+
+void Interface::ChangePassword(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    DatabaseProxy * proxy = DatabaseProxy::Instance();
+
+    ClearScreen();
+    cout << " ======================== 修改密码 ========================\n";
+
+    cout << "ID: " << context->user_id() << endl;
+
+    std::string old_password(ReadPassword("原密码: "));
+    User user;
+    while (proxy->Login(context->user_id(), old_password, user))
+    {
+        if (old_password.empty())
+        {
+            context->set_state(&Interface::MainMenu);
+            return;
+        }
+        old_password.assign(ReadPassword("密码错误\n原密码: "));
+    }
+
+    std::string new_password(ReadPassword("新密码: "));
+    if (new_password == ReadPassword("确认密码: "))
+    {
+        if (proxy->ChangePassword(context->user_id(),
+                                  old_password, new_password))
+            cout << "修改成功\n";
+        else
+            cout << "修改失败\n";
+    }
+    else
+    {
+        cout << "两次输入的密码不同\n";
+    }
+
+    ContinueOrMainMenu(context);
+}
+
 void Interface::ReturnBook(Context *context)
 {
     using std::cout;
@@ -157,11 +212,7 @@ void Interface::ReturnBook(Context *context)
         cout << "归还失败\n";
     }
 
-    cout << "\n[c] 继续                            [m] 主菜单\n";
-    int choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else nothing need to be done
+    ContinueOrMainMenu(context);
 }
 
 void Interface::GetRequested(Context *context)
@@ -289,10 +340,21 @@ void Interface::ShowBook(Context *context)
     context->set_current_book(ISBN());
 }
 
+
+
 Interface * Interface::Instance()
 {
     static Interface interface;
     return &interface;
+}
+
+void Interface::ContinueOrMainMenu(Context *context)
+{
+    std::cout << "\n[c] 继续                              [m] 主菜单\n";
+    int choice = GetChoice("cm");
+    if (choice == 'm')
+        context->set_state(&Interface::MainMenu);
+    // else choice == 'c', nothing needs to be done
 }
 
 void Interface::GetValidUser(UserID &user_id, User &user)
@@ -330,7 +392,7 @@ void ReaderInterface::MainMenu(Context *context)
     cout <<
 "[编号] 查看对应书籍的详细信息\n"
 "[e] 查询书籍       [b] 借书           [r] 预约           [t] 还书\n"
-"[g] 预约取书                                             [q] 退出\n";
+"[g] 预约取书       [p] 修改密码                          [q] 退出\n";
 
     int choice;
     if (GetChoice("ebrtgq", borrowed_.size() + requested_.size(), choice)
@@ -343,6 +405,7 @@ void ReaderInterface::MainMenu(Context *context)
             case 'r': context->set_state(&Interface::RequestBook); break;
             case 't': context->set_state(&Interface::ReturnBook); break;
             case 'g': context->set_state(&Interface::GetRequested); break;
+            case 'p': context->set_state(&Interface::ChangePassword); break;
             case 'q': context->set_state(&Interface::WelcomeScreen); break;
         }
     }
@@ -395,11 +458,7 @@ void ReaderInterface::BorrowBook(Context *context)
         }
     }
 
-    cout << "\n[c] 继续          [m] 主菜单\n";
-    int choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else nothing need to be done
+    ContinueOrMainMenu(context);
 }
 
 void ReaderInterface::RequestBook(Context *context)
@@ -437,11 +496,7 @@ void ReaderInterface::RequestBook(Context *context)
         }
     }
 
-    cout << "\n[c] 继续          [m] 主菜单\n";
-    int choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else nothing need to be done
+    ContinueOrMainMenu(context);
 }
 
 void ReaderInterface::GetRequested(Context *context)
@@ -496,11 +551,7 @@ void ReaderInterface::GetRequested(Context *context)
         return;
     }
 
-    cout << "[c] 继续               [m] 主菜单\n";
-    choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else choice == 'c', nothing needs to be done
+    ContinueOrMainMenu(context);
 }
 
 ReaderInterface * ReaderInterface::Instance()
@@ -580,73 +631,158 @@ void AdminInterface::MainMenu(Context *context)
     ClearScreen();
     cout << " =========================== 主菜单 ===========================\n";
 
-    cout << "欢迎你, 管理员 " << context->user_id() << "\n\n"
-            "[b] 借出书籍          [r] 归还书籍\n"
-            "[g] 预约取书          [q] 退出\n";
+    cout <<
+"欢迎你, 管理员 " << context->user_id() << "\n\n"
+"[u] 查看用户       [n] 创建用户       [d] 删除用户       [q] 退出\n";
 
     int choice = GetChoice("brgq");
     switch (choice)
     {
-        case 'b': context->set_state(&Interface::BorrowBook); break;
-        case 'r': context->set_state(&Interface::ReturnBook); break;
-        case 'g': context->set_state(&Interface::GetRequested); break;
+        case 'u': context->set_state(&Interface::ShowUser); break;
+        case 'n': context->set_state(&Interface::CreateUser); break;
+        case 'd': context->set_state(&Interface::DeleteUser); break;
         case 'q': context->set_state(&Interface::WelcomeScreen); break;
     }
 }
 
-void AdminInterface::BorrowBook(Context *context)
+void AdminInterface::ShowUser(Context *context)
 {
     using std::cout;
     using std::endl;
 
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
     ClearScreen();
-    cout << " ============================ 借书 ============================\n";
+    cout << " ========================== 查看用户 ==========================\n";
 
-    UserID reader_id = ReadUserID("请输入读者ID: ");
-    CopyID copy_id = ReadLine("请输入要借出书籍的条形码: ");
-
-    if (DatabaseProxy::Instance()->BorrowCopy(reader_id, copy_id))
+    UserID id = ReadUserID("用户名: ");
+    auto result = proxy->ReaderInfo(id);
+    while (!result->next())
     {
-        ShowCopyBasicInfo(copy_id);
-        cout << "借阅成功\n";
-    }
-    else
-    {
-        cout << "借阅失败\n";
+        if (id == kInvalidUserID)  // perhaps an empty line
+        {
+            context->set_state(&Interface::MainMenu);
+            return;
+        }
+        cout << "不存在ID为 " << id << "的用户\n";
+        id = ReadUserID("用户名: ");
+        result = proxy->ReaderInfo(id);
     }
 
-    cout << "\n[c] 继续          [m] 主菜单\n";
-    int choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else nothing need to be done
+    cout << "ID: " << id
+         << "\n姓名: " << result->getString("name")
+         << "\n\n所借书籍\n";
+
+    int index = 1;
+    {
+        auto borrowed = proxy->QueryBorrowed(id);
+        while (borrowed->next())
+        {
+            ShowThisCopy(index, borrowed.get());
+            cout << endl;
+        }
+    }
+    cout << "\n预约书籍\n";
+    index = 1;
+    {
+        auto requested = proxy->QueryRequested(id);
+        while (requested->next())
+        {
+            ShowThisCopy(index, requested.get());
+            cout << endl;
+        }
+    }
+
+    ContinueOrMainMenu(context);
 }
 
-void AdminInterface::GetRequested(Context *context)
+void AdminInterface::CreateUser(Context *context)
 {
     using std::cout;
     using std::endl;
 
-    ClearScreen();
-    cout << " ========================== 预约取书 ==========================\n";
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
 
-    UserID reader_id = ReadUserID("请输入读者ID: ");
-    CopyID copy_id = ReadLine("请输入要领取预约书籍的条形码: ");
-    if (DatabaseProxy::Instance()->GetRequested(reader_id, copy_id))
+    ClearScreen();
+    cout << " ========================== 创建用户 ==========================\n";
+
+
+    cout << "用户类型\n"
+            "1: 读者   2: 管理员 (无借书权限)  3: 管理员 (有借书权限)\n";
+    User type = static_cast<User>(GetChoice(3));
+
+    UserID id = ReadUserID("用户名: ");
+    while (proxy->ReaderInfo(id)->next())
     {
-        ShowCopyBasicInfo(copy_id);
-        cout << "领取成功\n";
+        cout << "已存在ID为 " << id << "的用户\n";
+        id = ReadUserID("用户名: ");
+    }
+    if (id == kInvalidUserID)  // perhaps an empty line
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    std::string name = ReadLine("姓名: ");
+
+    std::string password = ReadPassword("密码: ");
+    if (password == ReadPassword("确认密码: "))
+    {
+        cout << "用户类型: " << kUserTypeNames[static_cast<int>(type) - 1]
+             << "\n用户ID: " << id << endl;
+
+        if (YesOrNo("确认要创建此用户吗? "))
+        {
+            if (DatabaseProxy::Instance()->CreateUser(type, id, name, password))
+                cout << "创建成功\n";
+            else
+                cout << "创建失败\n";
+        }
     }
     else
     {
-        cout << "领取失败\n";
+        cout << "两次输入的密码不同\n";
     }
 
-    cout << "\n[c] 继续          [m] 主菜单\n";
-    int choice = GetChoice("cm");
-    if (choice == 'm')
-        context->set_state(&Interface::MainMenu);
-    // else nothing need to be done
+    ContinueOrMainMenu(context);
+}
+
+void AdminInterface::DeleteUser(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
+    ClearScreen();
+    cout << " ========================== 删除用户 ==========================\n";
+
+    UserID id = ReadUserID("用户名: ");
+    auto result = proxy->ReaderInfo(id);
+    while (id == context->user_id() || !result->next())  // prevent self delete
+    {
+        if (id == kInvalidUserID)  // perhaps an empty line
+        {
+            context->set_state(&Interface::MainMenu);
+            return;
+        }
+        cout << "不存在ID为 " << id << "的用户\n";
+        id = ReadUserID("用户名: ");
+        result = proxy->ReaderInfo(id);
+    }
+
+    cout << "ID: " << id
+         << "\n姓名: " << result->getString("name") << endl;
+
+    if (YesOrNo("确定要删除该用户吗? "))
+    {
+        if (proxy->DeleteUser(id))
+            cout << "删除成功\n";
+        else
+            cout << "删除失败\n";
+    }
+
+    ContinueOrMainMenu(context);
 }
 
 AdminInterface * AdminInterface::Instance()

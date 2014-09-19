@@ -27,6 +27,9 @@ class DatabaseProxy
                          const std::string &password);
 
     bool Login(UserID user_id, const std::string &password, User &user);
+    bool ChangePassword(UserID user_id,
+                        const std::string &old_password,
+                        const std::string &new_password);
 
     // name
     QueryResult ReaderInfo(UserID reader_id);
@@ -55,6 +58,10 @@ class DatabaseProxy
     bool ReturnCopy(const CopyID &copy_id);
     bool RequestCopy(UserID reader_id, const CopyID &copy_id);
 
+    bool CreateUser(User type, UserID id, const std::string &name,
+                    const std::string &password);
+    bool DeleteUser(UserID user_id);
+
 
     static DatabaseProxy * Instance();
 
@@ -64,6 +71,10 @@ class DatabaseProxy
     void InsertRequest(UserID reader_id, const CopyID &copy_id);
     void DeleteBorrow(const CopyID &copy_id);
     void DeleteRequest(UserID reader_id, const CopyID &copy_id);
+    void InsertUser(User type, UserID user_id, const std::string &name,
+                    const std::string &password,
+                    const std::string &salt);
+    void DeleteUserFromTable(UserID user_id);
 
     typedef std::unique_ptr<sql::PreparedStatement> Statement;
     std::unique_ptr<sql::Connection> connection_;

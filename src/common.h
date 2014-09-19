@@ -12,7 +12,12 @@ typedef std::uint_least64_t ISBN;
 typedef std::string CopyID;
 typedef std::uint_least64_t PhoneNum;
 typedef std::string CallNum;
-enum class User { READER, ADMIN };
+enum class User { ADMIN, READER, ADMIN_READER};
+std::string kUserTypeNames[3] = {
+    "读者",
+    "管理员 (无借书权限)",
+    "管理员 (有借书权限)"
+};
 
 class ExitProgram : public std::exception
 {
@@ -23,7 +28,6 @@ class ExitProgram : public std::exception
  private:
     int return_value_;
 };
-
 
 const int kLoanPeriod = 90;
 

@@ -42,8 +42,11 @@ UserID ReadUserID(const std::string &promt)
     {
         try
         {
-            return boost::lexical_cast<UserID>(
-                    ReadLine(promt));
+            std::string line(ReadLine(promt));
+            if (line.empty())
+                return kInvalidUserID;  // return if enter an empty user id
+
+            return boost::lexical_cast<UserID>(line);
         }
         catch (boost::bad_lexical_cast &)
         {
@@ -62,6 +65,7 @@ std::string ReadPassword(const std::string &promt)
     tcsetattr(STDIN_FILENO, TCSANOW, &new_flgs);
 
     std::string line(ReadLine(promt));
+    std::cout << std::endl;  // echo an endline
 
     tcsetattr(STDIN_FILENO, TCSANOW, &old_flags);
     return line;
@@ -121,6 +125,13 @@ int GetChoice(const std::string &chars)
 {
     int choice;
     GetChoice(chars, 0, choice);
+    return choice;
+}
+
+int GetChoice(int max_index)
+{
+    int choice;
+    GetChoice("", max_index, choice);
     return choice;
 }
 
