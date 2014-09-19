@@ -69,7 +69,7 @@ void Interface::WelcomeScreen(Context *context)
     std::cout <<
 " ==============================================================\n"
 "|                    欢迎来到图书馆管理系统                    |\n"
-"|                             v0.9                             |\n"
+"|                             v1.0                             |\n"
 " ==============================================================\n"
 "\n"
 "[l] 登陆           [e] 查询书籍       [r] 还书           [q] 退出\n";
@@ -708,7 +708,8 @@ void AdminInterface::ShowUser(Context *context)
 
     // successful
     ClearScreen();
-    cout << "用户ID: " << id
+    cout << " ========================== 查看用户 ==========================\n"
+         << "用户ID: " << id
          << "\n姓名: " << result->getString("name")
          << "\n\n所借书籍\n";
 
@@ -717,7 +718,7 @@ void AdminInterface::ShowUser(Context *context)
         auto borrowed = proxy->QueryBorrowed(id);
         while (borrowed->next())
         {
-            ShowThisCopy(index, borrowed.get());
+            ShowThisCopy(index++, borrowed.get());
             cout << endl;
         }
     }
@@ -730,7 +731,7 @@ void AdminInterface::ShowUser(Context *context)
         auto requested = proxy->QueryRequested(id);
         while (requested->next())
         {
-            ShowThisCopy(index, requested.get());
+            ShowThisCopy(index++, requested.get());
             cout << endl;
         }
     }
@@ -773,7 +774,8 @@ void AdminInterface::CreateUser(Context *context)
     if (password == ReadPassword("确认密码: "))
     {
         ClearScreen();
-        cout << "用户类型: " << kUserTypeNames[static_cast<int>(type) - 1]
+        cout << " ================== 创建用户 -> 确认 ==================\n"
+             << "用户类型: " << kUserTypeNames[static_cast<int>(type) - 1]
              << "\n用户ID: " << id << endl;
 
         if (YesOrNo("确认要创建此用户吗? "))
@@ -817,7 +819,8 @@ void AdminInterface::DeleteUser(Context *context)
     }
 
     ClearScreen();
-    cout << "用户ID: " << id
+    cout << " ================== 删除用户 -> 确认 ==================\n"
+         << "用户ID: " << id
          << "\n姓名: " << result->getString("name") << endl;
 
     if (YesOrNo("确定要删除该用户吗? "))
