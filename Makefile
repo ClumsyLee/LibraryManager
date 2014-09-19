@@ -5,7 +5,7 @@ INCLUDE_DIR = .
 OBJS = obj/main.o obj/command_line_interface.o obj/context.o obj/database_proxy.o obj/interface.o obj/utility.o
 
 bin/sam: $(OBJS) | bin
-	$(CXX) -g -o $@ $(OBJS) -L$(LIB_DIR) -lmysqlcppconn -lssl -lcrypto
+	$(CXX) -g -o $@ $(OBJS) -L$(LIB_DIR) -lmysqlcppconn -lssl -lcrypto -lreadline
 
 obj/main.o: src/main.cpp src/context.h | obj
 	$(CXX) $(CXXFLAGS) -o $@ $<

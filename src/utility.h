@@ -13,12 +13,12 @@ const UserID kInvalidUserID = 0;
 void ClearScreen();
 
 // readline
-std::string ReadLine(const std::string &promt);
-UserID ReadUserID(const std::string &promt);
-std::string ReadPassword(const std::string &promt);
+std::string ReadLine(const std::string &prompt);
+UserID ReadUserID(const std::string &prompt);
+std::string ReadPassword(const std::string &prompt);
 
 // choice
-bool YesOrNo(const std::string &promt);
+bool YesOrNo(const std::string &prompt);
 Choice GetChoice(const std::string &chars, int max_index, int &choice);
 int GetChoice(const std::string &chars);
 int GetChoice(int max_index);

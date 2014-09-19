@@ -2,6 +2,9 @@
 #include <string>
 #include <iostream>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -22,27 +25,35 @@ namespace library_manager {
 
 void ClearScreen()
 {
+#if defined(_WIN32)
+    std::system("cls");
+#elif !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
     std::system("clear");
+#endif
 }
 
-std::string ReadLine(const std::string &promt)
+std::string ReadLine(const std::string &prompt)
 {
-    std::cout << promt;
-    std::string line;
-    if (!std::getline(std::cin, line))
-    {
+    char *line_read = readline(prompt.c_str());
+    if (!line_read)  // EOF
         throw ExitProgram(1);
-    }
+
+    std::string line(line_read);
+
+    if (!boost::trim_copy(line).empty())
+        add_history(line_read);  // if not empty, add the origin line
+
+    std::free(line_read);
     return line;
 }
 
-UserID ReadUserID(const std::string &promt)
+UserID ReadUserID(const std::string &prompt)
 {
     while (true)
     {
         try
         {
-            std::string line(ReadLine(promt));
+            std::string line(ReadLine(prompt));
             if (line.empty())
                 return kInvalidUserID;  // return if enter an empty user id
 
@@ -55,8 +66,11 @@ UserID ReadUserID(const std::string &promt)
     }
 }
 
-std::string ReadPassword(const std::string &promt)
+std::string ReadPassword(const std::string &prompt)
 {
+    std::cout << prompt;
+    std::string line;
+
 #ifdef USE_TERMIOS_FOR_PASSWORD_INPUT
     termios old_flags;
     tcgetattr(STDIN_FILENO, &old_flags);
@@ -64,19 +78,20 @@ std::string ReadPassword(const std::string &promt)
     new_flgs.c_lflag &= ~ECHO;
     tcsetattr(STDIN_FILENO, TCSANOW, &new_flgs);
 
-    std::string line(ReadLine(promt));
+    std::getline(std::cin, line);
     std::cout << std::endl;  // echo an endline
 
     tcsetattr(STDIN_FILENO, TCSANOW, &old_flags);
-    return line;
 #else
-    return ReadLine(promt);
+    std::getline(std::cin, line);
 #endif
+
+    return line;
 }
 
-bool YesOrNo(const std::string &promt)
+bool YesOrNo(const std::string &prompt)
 {
-    std::string line(ReadLine(promt));
+    std::string line(ReadLine(prompt));
     while (true)
     {
         boost::to_lower(line);
