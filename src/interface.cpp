@@ -109,6 +109,11 @@ void Interface::Login(Context *context)
             context->set_interface(AdminInterface::Instance());
             break;
         }
+        case User::ADMIN_READER:
+        {
+            context->set_interface(AdminReaderInterface::Instance());
+            break;
+        }
         default:
         {
             throw std::runtime_error(
@@ -166,7 +171,7 @@ void Interface::ChangePassword(Context *context)
 
     std::string old_password(ReadPassword("原密码: "));
     User user;
-    while (proxy->Login(context->user_id(), old_password, user))
+    while (!proxy->Login(context->user_id(), old_password, user))
     {
         if (old_password.empty())
         {
@@ -202,6 +207,12 @@ void Interface::ReturnBook(Context *context)
     cout << " ========================== 还书 ==========================\n";
 
     CopyID copy_id = ReadLine("请输入要归还书籍的条形码: ");
+    if (copy_id.empty())  // return if got an empty line
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
     if (DatabaseProxy::Instance()->ReturnCopy(copy_id))
     {
         ShowCopyBasicInfo(copy_id);
@@ -357,6 +368,17 @@ void Interface::ContinueOrMainMenu(Context *context)
     // else choice == 'c', nothing needs to be done
 }
 
+std::string Interface::GetUserName(Context *context)
+{
+    auto result = DatabaseProxy::Instance()->ReaderInfo(context->user_id());
+    if (!result->next())
+        throw std::runtime_error("Cannot find a user (id: " +
+            boost::lexical_cast<std::string>(context->user_id()) +
+            ") that has already logged in");
+
+    return result->getString("name");
+}
+
 void Interface::GetValidUser(UserID &user_id, User &user)
 {
     using std::cout;
@@ -371,7 +393,7 @@ void Interface::GetValidUser(UserID &user_id, User &user)
             return;
         }
         // Login failed.
-        cout << "用户名或密码错误\n";
+        cout << "用户ID或密码错误\n";
     }
 }
 
@@ -381,29 +403,28 @@ void ReaderInterface::MainMenu(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << " =========================== 主菜单 ===========================\n";
+    std::cout <<
+" =========================== 主菜单 ===========================\n"
+"欢迎你, 读者 " << GetUserName(context) << endl;
 
-    user_id_ = context->user_id();  // update user_id
-
-    ShowReaderInfo();
-    ShowBorrowed();
-    ShowRequested();
+    PerpareMainMenuAndShowInfo(context);
 
     cout <<
 "[编号] 查看对应书籍的详细信息\n"
-"[e] 查询书籍       [b] 借书           [r] 预约           [t] 还书\n"
-"[g] 预约取书       [p] 修改密码                          [q] 退出\n";
+"[e] 查询书籍\n"
+"[b] 借书           [t] 还书           [r] 预约           [g] 预约取书\n"
+"[p] 修改密码                                             [q] 退出\n";
 
     int choice;
-    if (GetChoice("ebrtgq", borrowed_.size() + requested_.size(), choice)
+    if (GetChoice("ebtrgpq", borrowed_.size() + requested_.size(), choice)
                 == Choice::CHAR)
     {
         switch (choice)
         {
             case 'e': context->set_state(&Interface::Query); break;
             case 'b': context->set_state(&Interface::BorrowBook); break;
-            case 'r': context->set_state(&Interface::RequestBook); break;
             case 't': context->set_state(&Interface::ReturnBook); break;
+            case 'r': context->set_state(&Interface::RequestBook); break;
             case 'g': context->set_state(&Interface::GetRequested); break;
             case 'p': context->set_state(&Interface::ChangePassword); break;
             case 'q': context->set_state(&Interface::WelcomeScreen); break;
@@ -411,14 +432,7 @@ void ReaderInterface::MainMenu(Context *context)
     }
     else  // an index
     {
-        // book in borrowed
-        if (choice <= static_cast<int>(borrowed_.size()))
-            context->set_current_book(borrowed_[choice - 1].first);
-        else  // book in requested
-            context->set_current_book(
-                requested_[choice - borrowed_.size() - 1].first);
-
-        context->set_state(&Interface::ShowBook);
+        ShowBookInfoFromMain(context, choice);
         return;
     }
 }
@@ -432,6 +446,12 @@ void ReaderInterface::BorrowBook(Context *context)
     cout << " ============================ 借书 ============================\n";
 
     CopyID copy_id = ReadLine("请输入要借出副本的条形码: ");
+    if (copy_id.empty())  // return if got an empty line
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
     auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
     if (!copy_info->next())
     {
@@ -470,6 +490,12 @@ void ReaderInterface::RequestBook(Context *context)
     cout << " ========================== 预约图书 ==========================\n";
 
     CopyID copy_id = ReadLine("请输入要预约副本的条形码: ");
+    if (copy_id.empty())  // return if got an empty line
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
     auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
     if (!copy_info->next())
     {
@@ -560,18 +586,26 @@ ReaderInterface * ReaderInterface::Instance()
     return &interface;
 }
 
-void ReaderInterface::ShowReaderInfo() const
+int ReaderInterface::PerpareMainMenuAndShowInfo(Context *context)
 {
-    using std::cout;
+    user_id_ = context->user_id();  // update user_id
 
-    auto user_info = DatabaseProxy::Instance()->ReaderInfo(user_id_);
-    if (!user_info->next())
-        throw std::runtime_error("Cannot find a user (id: " +
-            boost::lexical_cast<std::string>(user_id_) +
-            ") that has already logged in");
+    ShowBorrowed();
+    ShowRequested();
 
-    cout << "姓名: " << user_info->getString("name")
-         << "\n\n";
+    return borrowed_.size() + requested_.size();
+}
+
+void ReaderInterface::ShowBookInfoFromMain(Context *context, int choice)
+{
+    // book in borrowed
+    if (choice <= static_cast<int>(borrowed_.size()))
+        context->set_current_book(borrowed_[choice - 1].first);
+    else  // book in requested
+        context->set_current_book(
+            requested_[choice - borrowed_.size() - 1].first);
+
+    context->set_state(&Interface::ShowBook);
 }
 
 void ReaderInterface::ShowBorrowed()
@@ -629,18 +663,21 @@ void AdminInterface::MainMenu(Context *context)
     using std::endl;
 
     ClearScreen();
-    cout << " =========================== 主菜单 ===========================\n";
-
     cout <<
-"欢迎你, 管理员 " << context->user_id() << "\n\n"
-"[u] 查看用户       [n] 创建用户       [d] 删除用户       [q] 退出\n";
+" =========================== 主菜单 ===========================\n"
+"欢迎你, 管理员 " << GetUserName(context) << "\n\n"
+"[e] 查询书籍\n"
+"[u] 查看用户       [n] 创建用户       [d] 删除用户"
+"[p] 修改密码                                             [q] 退出\n";
 
-    int choice = GetChoice("brgq");
+    int choice = GetChoice("eundpq");
     switch (choice)
     {
+        case 'e': context->set_state(&Interface::Query); break;
         case 'u': context->set_state(&Interface::ShowUser); break;
         case 'n': context->set_state(&Interface::CreateUser); break;
         case 'd': context->set_state(&Interface::DeleteUser); break;
+        case 'p': context->set_state(&Interface::ChangePassword); break;
         case 'q': context->set_state(&Interface::WelcomeScreen); break;
     }
 }
@@ -655,7 +692,7 @@ void AdminInterface::ShowUser(Context *context)
     ClearScreen();
     cout << " ========================== 查看用户 ==========================\n";
 
-    UserID id = ReadUserID("用户名: ");
+    UserID id = ReadUserID("用户ID: ");
     auto result = proxy->ReaderInfo(id);
     while (!result->next())
     {
@@ -665,11 +702,13 @@ void AdminInterface::ShowUser(Context *context)
             return;
         }
         cout << "不存在ID为 " << id << "的用户\n";
-        id = ReadUserID("用户名: ");
+        id = ReadUserID("用户ID: ");
         result = proxy->ReaderInfo(id);
     }
 
-    cout << "ID: " << id
+    // successful
+    ClearScreen();
+    cout << "用户ID: " << id
          << "\n姓名: " << result->getString("name")
          << "\n\n所借书籍\n";
 
@@ -682,7 +721,10 @@ void AdminInterface::ShowUser(Context *context)
             cout << endl;
         }
     }
-    cout << "\n预约书籍\n";
+    if (index == 1)
+        cout << "(无)\n\n";
+
+    cout << "预约书籍\n";
     index = 1;
     {
         auto requested = proxy->QueryRequested(id);
@@ -692,6 +734,8 @@ void AdminInterface::ShowUser(Context *context)
             cout << endl;
         }
     }
+    if (index == 1)
+        cout << "(无)\n\n";
 
     ContinueOrMainMenu(context);
 }
@@ -711,11 +755,11 @@ void AdminInterface::CreateUser(Context *context)
             "1: 读者   2: 管理员 (无借书权限)  3: 管理员 (有借书权限)\n";
     User type = static_cast<User>(GetChoice(3));
 
-    UserID id = ReadUserID("用户名: ");
+    UserID id = ReadUserID("用户ID: ");
     while (proxy->ReaderInfo(id)->next())
     {
         cout << "已存在ID为 " << id << "的用户\n";
-        id = ReadUserID("用户名: ");
+        id = ReadUserID("用户ID: ");
     }
     if (id == kInvalidUserID)  // perhaps an empty line
     {
@@ -728,6 +772,7 @@ void AdminInterface::CreateUser(Context *context)
     std::string password = ReadPassword("密码: ");
     if (password == ReadPassword("确认密码: "))
     {
+        ClearScreen();
         cout << "用户类型: " << kUserTypeNames[static_cast<int>(type) - 1]
              << "\n用户ID: " << id << endl;
 
@@ -757,7 +802,7 @@ void AdminInterface::DeleteUser(Context *context)
     ClearScreen();
     cout << " ========================== 删除用户 ==========================\n";
 
-    UserID id = ReadUserID("用户名: ");
+    UserID id = ReadUserID("用户ID: ");
     auto result = proxy->ReaderInfo(id);
     while (id == context->user_id() || !result->next())  // prevent self delete
     {
@@ -767,11 +812,12 @@ void AdminInterface::DeleteUser(Context *context)
             return;
         }
         cout << "不存在ID为 " << id << "的用户\n";
-        id = ReadUserID("用户名: ");
+        id = ReadUserID("用户ID: ");
         result = proxy->ReaderInfo(id);
     }
 
-    cout << "ID: " << id
+    ClearScreen();
+    cout << "用户ID: " << id
          << "\n姓名: " << result->getString("name") << endl;
 
     if (YesOrNo("确定要删除该用户吗? "))
@@ -788,6 +834,53 @@ void AdminInterface::DeleteUser(Context *context)
 AdminInterface * AdminInterface::Instance()
 {
     static AdminInterface interface;
+    return &interface;
+}
+
+void AdminReaderInterface::MainMenu(Context *context)
+{
+    using std::cout;
+
+    ClearScreen();
+    cout << " =========================== 主菜单 ===========================\n"
+              << "欢迎你, 管理员 " << GetUserName(context) << "\n";
+
+    int choice_num = PerpareMainMenuAndShowInfo(context);
+
+    cout <<
+"[编号] 查看对应书籍的详细信息\n"
+"[e] 查询书籍\n"
+"[b] 借书           [t] 还书           [r] 预约           [g] 预约取书\n"
+"[u] 查看用户       [n] 创建用户       [d] 删除用户\n"
+"[p] 修改密码                                             [q] 退出\n";
+
+    int choice;
+    if (GetChoice("ebtrgundpq", choice_num, choice) == Choice::CHAR)
+    {
+        switch (choice)
+        {
+            case 'e': context->set_state(&Interface::Query); break;
+            case 'b': context->set_state(&Interface::BorrowBook); break;
+            case 't': context->set_state(&Interface::ReturnBook); break;
+            case 'r': context->set_state(&Interface::RequestBook); break;
+            case 'g': context->set_state(&Interface::GetRequested); break;
+            case 'p': context->set_state(&Interface::ChangePassword); break;
+            case 'q': context->set_state(&Interface::WelcomeScreen); break;
+            case 'u': context->set_state(&Interface::ShowUser); break;
+            case 'n': context->set_state(&Interface::CreateUser); break;
+            case 'd': context->set_state(&Interface::DeleteUser); break;
+        }
+    }
+    else  // an index
+    {
+        ShowBookInfoFromMain(context, choice);
+        return;
+    }
+}
+
+AdminReaderInterface * AdminReaderInterface::Instance()
+{
+    static AdminReaderInterface interface;
     return &interface;
 }
 

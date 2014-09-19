@@ -39,12 +39,13 @@ class Interface
 
  protected:
     void ContinueOrMainMenu(Context *context);
+    std::string GetUserName(Context *context);
 
  private:
     static void GetValidUser(UserID &user_id, User &user);
 };
 
-class ReaderInterface : public Interface
+class ReaderInterface : virtual public Interface
 {
  public:
     ReaderInterface() = default;
@@ -57,10 +58,13 @@ class ReaderInterface : public Interface
 
     static ReaderInterface * Instance();
 
+ protected:
+    int PerpareMainMenuAndShowInfo(Context *context);
+    void ShowBookInfoFromMain(Context *context, int choice);
+
  private:
     typedef std::pair<ISBN, CopyID> TempBook;
 
-    void ShowReaderInfo() const;
     void ShowBorrowed();
     void ShowRequested();
 
@@ -69,7 +73,7 @@ class ReaderInterface : public Interface
     std::vector<TempBook> requested_;
 };
 
-class AdminInterface : public Interface
+class AdminInterface : virtual public Interface
 {
  public:
     AdminInterface() = default;
@@ -87,6 +91,7 @@ class AdminInterface : public Interface
 class AdminReaderInterface: public AdminInterface, public ReaderInterface
 {
  public:
+    virtual void MainMenu(Context *context);
 
     static AdminReaderInterface * Instance();
 };
