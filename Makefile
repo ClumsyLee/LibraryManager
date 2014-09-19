@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -c -std=c++11 -Wall -Wextra
-LIB_DIR = 
-INCLUDE_DIR = 
+LIB_DIR = .
+INCLUDE_DIR = .
 OBJS = obj/main.o obj/command_line_interface.o obj/context.o obj/database_proxy.o obj/interface.o obj/utility.o
 
 bin/sam: $(OBJS) | bin
