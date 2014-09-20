@@ -721,7 +721,7 @@ void ReaderInterface::BorrowBook(Context *context)
     else  // able to borrow
     {
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要借出该副本吗? (y/n):" "))
+        if (YesOrNo("确定要借出该副本吗? (y/n): "))
         {
             if (DatabaseProxy::Instance()->BorrowCopy(context->user_id(),
                                                       copy_id))
@@ -765,7 +765,7 @@ void ReaderInterface::RequestBook(Context *context)
     else  // able to request
     {
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要预约该副本吗? (y/n):" "))
+        if (YesOrNo("确定要预约该副本吗? (y/n):"))
         {
             if (DatabaseProxy::Instance()->RequestCopy(context->user_id(),
                                                        copy_id))
