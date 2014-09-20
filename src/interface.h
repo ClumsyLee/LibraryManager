@@ -44,7 +44,8 @@ class Interface
     void ContinueOrMainMenu(Context *context);
     std::string GetUserName(Context *context);
 
-    bool GetExistISBN(const std::string &prompt, ISBN &isbn);
+    bool GetExistISBN(const std::string &prompt, ISBN &isbn,
+                      std::string &title);
     bool GetSpareISBN(const std::string &prompt, ISBN &isbn);
     bool GetSpareCallNum(const std::string &prompt, CallNum &call_num);
     bool GetSpareCopyID(const std::string &prompt, CopyID &copy_id);

@@ -419,7 +419,8 @@ void Interface::CreateCopy(Context *context)
     cout << " ========================== 添加副本 ==========================\n";
 
     ISBN isbn;
-    if (!GetExistISBN("ISBN: ", isbn))
+    std::string title;
+    if (!GetExistISBN("ISBN: ", isbn, title))
     {
         context->set_state(&Interface::MainMenu);
         return;
@@ -434,8 +435,8 @@ void Interface::CreateCopy(Context *context)
 
     ClearScreen();
     cout << " ================== 添加副本 -> 确认 ==================\n"
-         << "ISBN: " << isbn
-         << "\n条形码: " << copy_id << "\n\n";
+         << "ISBN: " << isbn << " (" << title << ")\n"
+         << "条形码: " << copy_id << "\n\n";
 
     if (YesOrNo("是否要添加此副本? "))
     {
@@ -474,7 +475,8 @@ std::string Interface::GetUserName(Context *context)
     return result->getString("name");
 }
 
-bool Interface::GetExistISBN(const std::string &prompt, ISBN &isbn)
+bool Interface::GetExistISBN(const std::string &prompt, ISBN &isbn,
+                             std::string &title)
 {
     using std::cout;
 
@@ -490,7 +492,8 @@ bool Interface::GetExistISBN(const std::string &prompt, ISBN &isbn)
             auto result = DatabaseProxy::Instance()->BookInfo(isbn);
             if (result->next())
             {
-                cout << result->getString("title") << std::endl;
+                title.assign(result->getString("title"));
+                cout << title << std::endl;
                 return true;
             }
             // not exist
