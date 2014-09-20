@@ -42,9 +42,11 @@ class Interface
 
     virtual void LostCopy(Context *context);
 
+
     static Interface * Instance();
 
  protected:
+    virtual void ShowCopiesOfBook(Context *context);
     void ContinueOrMainMenu(Context *context);
     std::string GetUserName(Context *context);
 
@@ -97,8 +99,10 @@ class AdminInterface : virtual public Interface
     virtual void CreateUser(Context *context);
     virtual void RemoveUser(Context *context);
 
-
     static AdminInterface * Instance();
+
+ protected:
+    virtual void ShowCopiesOfBook(Context *context);
 };
 
 class AdminReaderInterface: public AdminInterface, public ReaderInterface
@@ -107,6 +111,12 @@ class AdminReaderInterface: public AdminInterface, public ReaderInterface
     virtual void MainMenu(Context *context);
 
     static AdminReaderInterface * Instance();
+
+ protected:
+    virtual void ShowCopiesOfBook(Context *context)
+    {
+        AdminInterface::ShowCopiesOfBook(context);
+    }
 };
 
 }  // namespace library_manager

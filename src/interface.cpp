@@ -1,4 +1,6 @@
 #include <iostream>
+#include <iomanip>
+
 #include <boost/lexical_cast.hpp>
 
 #include <cppconn/resultset.h>
@@ -314,25 +316,7 @@ void Interface::ShowBook(Context *context)
              << "\n索书号: " << book_info->getString("call_num");
     }
     cout << "\n\n副本信息:\n";
-    {  // copy info
-        auto copy_info =
-            DatabaseProxy::Instance()->CopiesOfBook(context->current_book());
-
-        while (copy_info->next())
-        {
-            cout << copy_info->getString("id") << "    "
-                 << copy_info->getString("status") << "    ";
-            if (!copy_info->isNull("due_date"))
-                 cout << copy_info->getString("due_date");
-            int request_num = copy_info->getInt("request_num");
-            if (request_num)
-            {
-             cout << " +" << boost::lexical_cast<std::string>(request_num)
-                  << " 预约";
-            }
-            cout << endl;
-        }
-    }
+    ShowCopiesOfBook(context);
 
     cout << "\n[e] 查询界面                              [m] 主菜单\n";
     int choice = GetChoice("em");
@@ -527,6 +511,34 @@ Interface * Interface::Instance()
 {
     static Interface interface;
     return &interface;
+}
+
+void Interface::ShowCopiesOfBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    auto copy_info =
+        DatabaseProxy::Instance()->CopiesOfBook(context->current_book());
+
+    cout << "    条形码       状态       借书人     到期日期\n";
+
+    while (copy_info->next())
+    {
+        using std::setw;
+
+        cout << setw(16) << copy_info->getString("id") << ' '
+             << setw(16) << copy_info->getString("status") << ' ';
+        if (!copy_info->isNull("due_date"))
+             cout << setw(16) << copy_info->getString("due_date");
+        int request_num = copy_info->getInt("request_num");
+        if (request_num)
+        {
+             cout << " +" << boost::lexical_cast<std::string>(request_num)
+                  << " 预约";
+        }
+        cout << endl;
+    }
 }
 
 void Interface::ContinueOrMainMenu(Context *context)
@@ -743,6 +755,8 @@ void ReaderInterface::RequestBook(Context *context)
     using std::cout;
     using std::endl;
 
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
     ClearScreen();
     cout << " ========================== 预约图书 ==========================\n";
 
@@ -753,7 +767,7 @@ void ReaderInterface::RequestBook(Context *context)
         return;
     }
 
-    auto copy_info = DatabaseProxy::Instance()->CopyInfo(copy_id);
+    auto copy_info = proxy->CopyInfo(copy_id);
     if (!copy_info->next())
     {
         cout << "不存在条形码为 " << copy_id << " 的副本\n";
@@ -762,12 +776,21 @@ void ReaderInterface::RequestBook(Context *context)
     {
         cout << "该副本未被借出, 不能预约\n";
     }
+    else if (proxy->Borrowed(context->user_id(), copy_id))
+    {
+        cout << "您正持有该副本, 不能预约\n";
+    }
+    else if (proxy->Requested(context->user_id(), copy_id))
+    {
+        cout << "您已经预约过该副本\n";
+    }
     else  // able to request
     {
+        cout << endl;
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要预约该副本吗? (y/n):"))
+        if (YesOrNo("\n确定要预约该副本吗? (y/n):"))
         {
-            if (DatabaseProxy::Instance()->RequestCopy(context->user_id(),
+            if (proxy->RequestCopy(context->user_id(),
                                                        copy_id))
                 cout << "预约成功\n";
             else
@@ -1103,6 +1126,46 @@ AdminInterface * AdminInterface::Instance()
     static AdminInterface interface;
     return &interface;
 }
+
+void AdminInterface::ShowCopiesOfBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+    using std::setw;
+
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
+    auto copy_info = proxy->CopiesOfBook(context->current_book());
+
+    cout << "    条形码       状态       借书人     到期日期   预约情况\n";
+
+    while (copy_info->next())
+    {
+        CopyID copy_id = copy_info->getString("id");
+
+        cout << setw(10) << copy_id << ' '
+             << setw(10) << copy_info->getString("status") << ' ';
+        if (!copy_info->isNull("borrower"))
+            cout << setw(12) << copy_info->getUInt("borrower") << ' ';
+        if (!copy_info->isNull("due_date"))
+            cout << setw(12) << copy_info->getString("due_date");
+        int request_num = copy_info->getInt("request_num");
+        if (request_num)
+        {
+            cout << "   +" << boost::lexical_cast<std::string>(request_num)
+                 << " 预约";
+        }
+        cout << endl;
+
+        auto request_list = proxy->RequestList(copy_id);
+        while (request_list->next())
+        {
+            cout << setw(50) << ""
+                 << request_list->getUInt("reader_id") << endl;
+        }
+    }
+}
+
 
 void AdminReaderInterface::MainMenu(Context *context)
 {

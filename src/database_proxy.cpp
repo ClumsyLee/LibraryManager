@@ -228,8 +228,7 @@ DatabaseProxy::QueryResult DatabaseProxy::BookInfo(const CallNum &call_num)
 DatabaseProxy::QueryResult DatabaseProxy::CopyInfo(const CopyID &copy_id)
 {
     static Statement statement(connection_->prepareStatement(
-        "SELECT * FROM CopyInfo "
-        "WHERE id=?"));
+        "SELECT * FROM CopyInfo WHERE id=?"));
 
     statement->setString(1, copy_id);
     return QueryResult(statement->executeQuery());
@@ -238,11 +237,40 @@ DatabaseProxy::QueryResult DatabaseProxy::CopyInfo(const CopyID &copy_id)
 DatabaseProxy::QueryResult DatabaseProxy::CopiesOfBook(ISBN isbn)
 {
     static Statement statement(connection_->prepareStatement(
-        "SELECT id, status, due_date, request_num FROM CopyInfo "
-        "WHERE isbn=?"));
+        "SELECT * FROM CopyInfo WHERE isbn=?"));
 
     statement->setUInt64(1, isbn);
     return QueryResult(statement->executeQuery());
+}
+
+DatabaseProxy::QueryResult DatabaseProxy::RequestList(const CopyID &copy_id)
+{
+    static Statement request_list(connection_->prepareStatement(
+        "SELECT reader_id FROM Request "
+        "WHERE copy_id=? ORDER BY time, reader_id"));
+
+    request_list->setString(1, copy_id);
+    return QueryResult(request_list->executeQuery());
+}
+
+bool DatabaseProxy::Borrowed(UserID reader_id, const CopyID &copy_id)
+{
+    static Statement borrowed(connection_->prepareStatement(
+        "SELECT copy_id FROM Borrow WHERE reader_id=? AND copy_id=?"));
+
+    borrowed->setUInt(1, reader_id);
+    borrowed->setString(2, copy_id);
+    return QueryResult(borrowed->executeQuery())->next();
+}
+
+bool DatabaseProxy::Requested(UserID reader_id, const CopyID &copy_id)
+{
+    static Statement requested(connection_->prepareStatement(
+        "SELECT copy_id FROM Request WHERE reader_id=? AND copy_id=?"));
+
+    requested->setUInt(1, reader_id);
+    requested->setString(2, copy_id);
+    return QueryResult(requested->executeQuery())->next();
 }
 
 bool DatabaseProxy::BorrowCopy(UserID reader_id, const CopyID &copy_id)
@@ -298,9 +326,6 @@ bool DatabaseProxy::ReturnCopy(const CopyID &copy_id)
 
 bool DatabaseProxy::AbleToGetRquested(UserID reader_id, const CopyID &copy_id)
 {
-    static Statement requests_now(connection_->prepareStatement(
-        "SELECT reader_id FROM Request WHERE copy_id=? ORDER BY time"));
-
     auto copy_info = CopyInfo(copy_id);
     if (!copy_info->next())
     {
@@ -312,10 +337,9 @@ bool DatabaseProxy::AbleToGetRquested(UserID reader_id, const CopyID &copy_id)
         return false;
     }
 
-    requests_now->setString(1, copy_id);
-    QueryResult request_status(requests_now->executeQuery());
-    if (request_status->next() &&
-        request_status->getUInt("reader_id") == reader_id)
+    auto request_list = RequestList(copy_id);
+    if (request_list->next() &&
+        request_list->getUInt("reader_id") == reader_id)
         return true;
     else
         return false;
@@ -352,7 +376,20 @@ bool DatabaseProxy::RequestCopy(UserID reader_id, const CopyID &copy_id)
         return false;
     }
     if (copy_info->getString("status") != "LENT")
+    {
+        std::cerr << "该副本未被借出, 不能预约\n";
         return false;
+    }
+    if (Borrowed(reader_id, copy_id))
+    {
+        std::cerr << "该读者正持有此副本, 不能预约\n";
+        return false;
+    }
+    if (Requested(reader_id, copy_id))
+    {
+        std::cerr << "该读者已预约过此书\n";
+        return false;
+    }
 
     InsertRequest(reader_id, copy_id);
     return true;

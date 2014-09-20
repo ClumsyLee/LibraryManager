@@ -51,6 +51,11 @@ class DatabaseProxy
     // [id, status, due_date, request_num]
     QueryResult CopiesOfBook(ISBN isbn);
 
+    QueryResult RequestList(const CopyID &copy_id);
+
+
+    bool Borrowed(UserID reader_id, const CopyID &copy_id);
+    bool Requested(UserID reader_id, const CopyID &copy_id);
 
     // Return true if succeed, false otherwise.
     bool BorrowCopy(UserID reader_id, const CopyID &copy_id);
