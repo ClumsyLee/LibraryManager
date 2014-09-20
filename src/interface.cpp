@@ -521,16 +521,16 @@ void Interface::ShowCopiesOfBook(Context *context)
     auto copy_info =
         DatabaseProxy::Instance()->CopiesOfBook(context->current_book());
 
-    cout << "    条形码       状态       借书人     到期日期\n";
+    cout << "    条形码       状态     到期日期\n";
 
     while (copy_info->next())
     {
         using std::setw;
 
-        cout << setw(16) << copy_info->getString("id") << ' '
-             << setw(16) << copy_info->getString("status") << ' ';
+        cout << setw(10) << copy_info->getString("id") << ' '
+             << setw(10) << copy_info->getString("status") << ' ';
         if (!copy_info->isNull("due_date"))
-             cout << setw(16) << copy_info->getString("due_date");
+             cout << setw(12) << copy_info->getString("due_date");
         int request_num = copy_info->getInt("request_num");
         if (request_num)
         {
@@ -732,8 +732,9 @@ void ReaderInterface::BorrowBook(Context *context)
     }
     else  // able to borrow
     {
+        cout << endl;
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要借出该副本吗? (y/n): "))
+        if (YesOrNo("\n确定要借出该副本吗? (y/n): "))
         {
             if (DatabaseProxy::Instance()->BorrowCopy(context->user_id(),
                                                       copy_id))
