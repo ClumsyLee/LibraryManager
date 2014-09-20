@@ -152,7 +152,7 @@ void Interface::CreateUser(Context *context)
     context->set_state(&Interface::WelcomeScreen);
 }
 
-void Interface::DeleteUser(Context *context)
+void Interface::RemoveUser(Context *context)
 {
     context->set_state(&Interface::WelcomeScreen);
 }
@@ -312,10 +312,6 @@ void Interface::ShowBook(Context *context)
              << "\n作者: " << book_info->getString("author")
              << "\n出版发行: " << book_info->getString("imprint")
              << "\n索书号: " << book_info->getString("call_num");
-        if (!book_info->isNull("abstract"))
-             cout << "\n内容简介: " << book_info->getString("abstract");
-        if (!book_info->isNull("table_of_contents"))
-             cout << "\n目录: " << book_info->getString("table_of_contents");
     }
     cout << "\n\n副本信息:\n";
     {  // copy info
@@ -351,7 +347,106 @@ void Interface::ShowBook(Context *context)
     context->set_current_book(ISBN());
 }
 
+void Interface::CreateBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
 
+    ClearScreen();
+    cout << " ========================== 添加书籍 ==========================\n";
+
+    ISBN isbn;
+    if (!GetSpareISBN("ISBN: ", isbn))
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    CallNum call_num;
+    if (!GetSpareCallNum("索书号: ", call_num))
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    std::string title = ReadLine("题名: ");
+    if (title.empty())
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    std::string author = ReadLine("作者: ");
+    if (author.empty())
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    std::string imprint = ReadLine("出版社: ");
+    if (imprint.empty())
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    ClearScreen();
+    cout << " ================== 添加书籍 -> 确认 ==================\n"
+         << "ISBN: " << isbn
+         << "\n索书号: " << call_num
+         << "\n题名: " << title
+         << "\n作者: " << author
+         << "\n出版社: " << imprint << "\n\n";
+
+    if (YesOrNo("是否要添加此书籍? "))
+    {
+        if (DatabaseProxy::Instance()->CreateBook(isbn, call_num, title, author,
+                                                  imprint))
+            cout << "添加成功\n";
+        else
+            cout << "添加失败\n";
+    }
+
+    ContinueOrMainMenu(context);
+}
+
+void Interface::CreateCopy(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+    cout << " ========================== 添加副本 ==========================\n";
+
+    ISBN isbn;
+    if (!GetExistISBN("ISBN: ", isbn))
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    CopyID copy_id;
+    if (!GetSpareCopyID("条形码: ", copy_id))
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+
+    ClearScreen();
+    cout << " ================== 添加副本 -> 确认 ==================\n"
+         << "ISBN: " << isbn
+         << "\n条形码: " << copy_id << "\n\n";
+
+    if (YesOrNo("是否要添加此副本? "))
+    {
+        if (DatabaseProxy::Instance()->CreateCopy(copy_id, isbn))
+            cout << "添加成功\n";
+        else
+            cout << "添加失败\n";
+    }
+
+    ContinueOrMainMenu(context);
+}
 
 Interface * Interface::Instance()
 {
@@ -377,6 +472,91 @@ std::string Interface::GetUserName(Context *context)
             ") that has already logged in");
 
     return result->getString("name");
+}
+
+bool Interface::GetExistISBN(const std::string &prompt, ISBN &isbn)
+{
+    using std::cout;
+
+    while (true)
+    {
+        std::string line = ReadLine(prompt);
+        if (line.empty())
+            return false;
+
+        try
+        {
+            isbn = boost::lexical_cast<ISBN>(line);
+            auto result = DatabaseProxy::Instance()->BookInfo(isbn);
+            if (result->next())
+            {
+                cout << result->getString("title") << std::endl;
+                return true;
+            }
+            // not exist
+            cout << "不存在ISBN为 " << isbn << " 的书籍\n";
+        }
+        catch (boost::bad_lexical_cast &)
+        {
+            cout << "请输入纯数字格式的ISBN\n";
+        }
+    }
+}
+
+bool Interface::GetSpareISBN(const std::string &prompt, ISBN &isbn)
+{
+    while (true)
+    {
+        std::string line = ReadLine(prompt);
+        if (line.empty())
+            return false;
+
+        try
+        {
+            isbn = boost::lexical_cast<ISBN>(line);
+            auto result = DatabaseProxy::Instance()->BookInfo(isbn);
+            if (!result->next())
+                return true;
+            // taken
+            std::cout << "该ISBN (" << isbn << ") 已被占用\n";
+        }
+        catch (boost::bad_lexical_cast &)
+        {
+            std::cout << "请输入纯数字格式的ISBN\n";
+        }
+    }
+}
+
+bool Interface::GetSpareCallNum(const std::string &prompt, CallNum &call_num)
+{
+    while (true)
+    {
+        call_num = ReadLine(prompt);
+        if (call_num.empty())
+            return false;
+
+        auto result = DatabaseProxy::Instance()->BookInfo(call_num);
+        if (!result->next())
+            return true;
+        // taken
+        std::cout << "该索书号 (" << call_num << ") 已被占用\n";
+    }
+}
+
+bool Interface::GetSpareCopyID(const std::string &prompt, CopyID &copy_id)
+{
+    while (true)
+    {
+        copy_id = ReadLine(prompt);
+        if (copy_id.empty())
+            return false;
+
+        auto result = DatabaseProxy::Instance()->CopyInfo(copy_id);
+        if (!result->next())
+            return true;
+        // taken
+        std::cout << "该条形码 (" << copy_id << ") 已被占用\n";
+    }
 }
 
 void Interface::GetValidUser(UserID &user_id, User &user)
@@ -667,16 +847,19 @@ void AdminInterface::MainMenu(Context *context)
 " =========================== 主菜单 ===========================\n"
 "欢迎你, 管理员 " << GetUserName(context) << "\n\n"
 "[e] 查询书籍\n"
-"[u] 查看用户       [n] 创建用户       [d] 删除用户"
+"[u] 查看用户       [n] 创建用户       [d] 删除用户\n"
+"[A] 添加书籍       [a] 添加副本\n"
 "[p] 修改密码                                             [q] 退出\n";
 
-    int choice = GetChoice("eundpq");
+    int choice = GetChoice("eundAapq");
     switch (choice)
     {
         case 'e': context->set_state(&Interface::Query); break;
         case 'u': context->set_state(&Interface::ShowUser); break;
         case 'n': context->set_state(&Interface::CreateUser); break;
-        case 'd': context->set_state(&Interface::DeleteUser); break;
+        case 'd': context->set_state(&Interface::RemoveUser); break;
+        case 'A': context->set_state(&Interface::CreateBook); break;
+        case 'a': context->set_state(&Interface::CreateCopy); break;
         case 'p': context->set_state(&Interface::ChangePassword); break;
         case 'q': context->set_state(&Interface::WelcomeScreen); break;
     }
@@ -794,7 +977,7 @@ void AdminInterface::CreateUser(Context *context)
     ContinueOrMainMenu(context);
 }
 
-void AdminInterface::DeleteUser(Context *context)
+void AdminInterface::RemoveUser(Context *context)
 {
     using std::cout;
     using std::endl;
@@ -825,7 +1008,7 @@ void AdminInterface::DeleteUser(Context *context)
 
     if (YesOrNo("确定要删除该用户吗? "))
     {
-        if (proxy->DeleteUser(id))
+        if (proxy->RemoveUser(id))
             cout << "删除成功\n";
         else
             cout << "删除失败\n";
@@ -855,10 +1038,11 @@ void AdminReaderInterface::MainMenu(Context *context)
 "[e] 查询书籍\n"
 "[b] 借书           [t] 还书           [r] 预约           [g] 预约取书\n"
 "[u] 查看用户       [n] 创建用户       [d] 删除用户\n"
+"[A] 添加书籍       [a] 添加副本\n"
 "[p] 修改密码                                             [q] 退出\n";
 
     int choice;
-    if (GetChoice("ebtrgundpq", choice_num, choice) == Choice::CHAR)
+    if (GetChoice("ebtrgundAapq", choice_num, choice) == Choice::CHAR)
     {
         switch (choice)
         {
@@ -867,11 +1051,13 @@ void AdminReaderInterface::MainMenu(Context *context)
             case 't': context->set_state(&Interface::ReturnBook); break;
             case 'r': context->set_state(&Interface::RequestBook); break;
             case 'g': context->set_state(&Interface::GetRequested); break;
-            case 'p': context->set_state(&Interface::ChangePassword); break;
-            case 'q': context->set_state(&Interface::WelcomeScreen); break;
             case 'u': context->set_state(&Interface::ShowUser); break;
             case 'n': context->set_state(&Interface::CreateUser); break;
-            case 'd': context->set_state(&Interface::DeleteUser); break;
+            case 'd': context->set_state(&Interface::RemoveUser); break;
+            case 'A': context->set_state(&Interface::CreateBook); break;
+            case 'a': context->set_state(&Interface::CreateCopy); break;
+            case 'p': context->set_state(&Interface::ChangePassword); break;
+            case 'q': context->set_state(&Interface::WelcomeScreen); break;
         }
     }
     else  // an index

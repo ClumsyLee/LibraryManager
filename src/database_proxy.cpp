@@ -216,6 +216,15 @@ DatabaseProxy::QueryResult DatabaseProxy::BookInfo(ISBN isbn)
     return QueryResult(statement->executeQuery());
 }
 
+DatabaseProxy::QueryResult DatabaseProxy::BookInfo(const CallNum &call_num)
+{
+    static Statement statement(connection_->prepareStatement(
+        "SELECT * FROM Book WHERE call_num=?"));
+
+    statement->setString(1, call_num);
+    return QueryResult(statement->executeQuery());
+}
+
 DatabaseProxy::QueryResult DatabaseProxy::CopyInfo(const CopyID &copy_id)
 {
     static Statement statement(connection_->prepareStatement(
@@ -365,15 +374,56 @@ bool DatabaseProxy::CreateUser(User type, UserID user_id,
     return true;
 }
 
-bool DatabaseProxy::DeleteUser(UserID user_id)
+bool DatabaseProxy::RemoveUser(UserID user_id)
 {
     if (!ReaderInfo(user_id)->next())
     {
         std::cerr << "不存在ID为 " << user_id << " 的用户\n";
         return false;
     }
+    if (QueryBorrowed(user_id)->next())
+    {
+        std::cerr << "该用户有未归还的书籍, 不能删除\n";
+        return false;
+    }
 
-    DeleteUserFromTable(user_id);
+    DeleteRequestOfUser(user_id);
+    DeleteUser(user_id);
+    return true;
+}
+
+bool DatabaseProxy::CreateBook(ISBN isbn, const CallNum &call_num,
+                               const std::string &title,
+                               const std::string &author,
+                               const std::string &imprint)
+{
+    if (BookInfo(isbn)->next())
+    {
+        std::cerr << "已经存在ISBN为 " << isbn << "的书籍\n";
+        return false;
+    }
+    if (BookInfo(call_num)->next())
+    {
+        std::cerr << "已经存在索书号为 " << call_num << "的书籍\n";
+        return false;
+    }
+    InsertBook(isbn, call_num, title, author, imprint);
+    return true;
+}
+
+bool DatabaseProxy::CreateCopy(const CopyID &copy_id, ISBN isbn)
+{
+    if (CopyInfo(copy_id)->next())
+    {
+        std::cerr << "已经存在条形码为 " << copy_id << "的副本\n";
+        return false;
+    }
+    if (!BookInfo(isbn)->next())
+    {
+        std::cerr << "不存在ISBN为 " << isbn << "的书籍\n";
+        return false;
+    }
+    InsertCopy(copy_id, isbn);
     return true;
 }
 
@@ -412,26 +462,6 @@ void DatabaseProxy::InsertRequest(UserID reader_id, const CopyID &copy_id)
     request->execute();
 }
 
-
-void DatabaseProxy::DeleteBorrow(const CopyID &copy_id)
-{
-    static Statement delete_borrow(connection_->prepareStatement(
-        "DELETE FROM Borrow WHERE copy_id=?"));
-
-    delete_borrow->setString(1, copy_id);
-    delete_borrow->execute();
-}
-
-void DatabaseProxy::DeleteRequest(UserID reader_id, const CopyID &copy_id)
-{
-    static Statement delete_request(connection_->prepareStatement(
-        "DELETE FROM Request WHERE copy_id=? AND reader_id=?"));
-
-    delete_request->setString(1, copy_id);
-    delete_request->setUInt(2, reader_id);
-    delete_request->execute();
-}
-
 void DatabaseProxy::InsertUser(User type, UserID user_id,
                                const std::string &name,
                                const std::string &password,
@@ -453,7 +483,73 @@ void DatabaseProxy::InsertUser(User type, UserID user_id,
     insert_user->execute();
 }
 
-void DatabaseProxy::DeleteUserFromTable(UserID user_id)
+void DatabaseProxy::InsertBook(ISBN isbn, const CallNum &call_num,
+                               const std::string &title,
+                               const std::string &author,
+                               const std::string &imprint)
+{
+    static Statement insert_book(connection_->prepareStatement(
+        "INSERT INTO Book VALUES (?, ?, ?, ?, ?)"));
+
+    insert_book->setUInt64(1, isbn);
+    insert_book->setString(2, call_num);
+    insert_book->setString(3, title);
+    insert_book->setString(4, author);
+    insert_book->setString(5, imprint);
+
+    insert_book->execute();
+}
+
+void DatabaseProxy::InsertCopy(const CopyID &copy_id, ISBN isbn)
+{
+    static Statement insert_copy(connection_->prepareStatement(
+        "INSERT INTO Copy(id, isbn, status) VALUES (?, ?, ON_SHELF)"));
+
+    insert_copy->setString(1, copy_id);
+    insert_copy->setUInt64(2, isbn);
+
+    insert_copy->execute();
+}
+
+
+void DatabaseProxy::DeleteBorrow(const CopyID &copy_id)
+{
+    static Statement delete_borrow(connection_->prepareStatement(
+        "DELETE FROM Borrow WHERE copy_id=?"));
+
+    delete_borrow->setString(1, copy_id);
+    delete_borrow->execute();
+}
+
+void DatabaseProxy::DeleteRequest(UserID reader_id, const CopyID &copy_id)
+{
+    static Statement delete_request(connection_->prepareStatement(
+        "DELETE FROM Request WHERE copy_id=? AND reader_id=?"));
+
+    delete_request->setString(1, copy_id);
+    delete_request->setUInt(2, reader_id);
+    delete_request->execute();
+}
+
+void DatabaseProxy::DeleteRequestOfUser(UserID reader_id)
+{
+    static Statement delete_request(connection_->prepareStatement(
+        "DELETE FROM Request WHERE reader_id=?"));
+
+    delete_request->setUInt(1, reader_id);
+    delete_request->execute();
+}
+
+void DatabaseProxy::DeleteRequestOfCopy(const CopyID &copy_id)
+{
+    static Statement delete_request(connection_->prepareStatement(
+        "DELETE FROM Request WHERE copy_id=?"));
+
+    delete_request->setString(1, copy_id);
+    delete_request->execute();
+}
+
+void DatabaseProxy::DeleteUser(UserID user_id)
 {
     static Statement delete_user(connection_->prepareStatement(
         "DELETE FROM User WHERE id=?"));
@@ -461,7 +557,6 @@ void DatabaseProxy::DeleteUserFromTable(UserID user_id)
     delete_user->setUInt(1, user_id);
     delete_user->execute();
 }
-
 
 
 DatabaseProxy * DatabaseProxy::Instance()

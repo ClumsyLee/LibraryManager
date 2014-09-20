@@ -41,8 +41,9 @@ class DatabaseProxy
     // [isbn, title, author, imprint]
     QueryResult Query(const std::string &keyword);
 
-    // isbn, title, author, imprint, abstract, table_of_contents, call_num
+    // isbn, title, author, imprint, call_num
     QueryResult BookInfo(ISBN isbn);
+    QueryResult BookInfo(const CallNum &call_num);
 
     // id, title, isbn, call_num, status, due_date, request_num
     QueryResult CopyInfo(const CopyID &copy_id);
@@ -60,8 +61,11 @@ class DatabaseProxy
 
     bool CreateUser(User type, UserID id, const std::string &name,
                     const std::string &password);
-    bool DeleteUser(UserID user_id);
-
+    bool RemoveUser(UserID user_id);
+    bool CreateBook(ISBN isbn, const CallNum &call_num,
+                    const std::string &title,
+                    const std::string &author, const std::string &imprint);
+    bool CreateCopy(const CopyID &copy_id, ISBN isbn);
 
     static DatabaseProxy * Instance();
 
@@ -69,12 +73,18 @@ class DatabaseProxy
     void UpdateCopyStatus(const CopyID &copy_id, const std::string &status);
     void InsertBorrow(UserID reader_id, const CopyID &copy_id, int days);
     void InsertRequest(UserID reader_id, const CopyID &copy_id);
-    void DeleteBorrow(const CopyID &copy_id);
-    void DeleteRequest(UserID reader_id, const CopyID &copy_id);
     void InsertUser(User type, UserID user_id, const std::string &name,
                     const std::string &password,
                     const std::string &salt);
-    void DeleteUserFromTable(UserID user_id);
+    void InsertBook(ISBN isbn, const CallNum &call_num,
+                    const std::string &title,
+                    const std::string &author, const std::string &imprint);
+    void InsertCopy(const CopyID &copy_id, ISBN isbn);
+    void DeleteBorrow(const CopyID &copy_id);
+    void DeleteRequest(UserID reader_id, const CopyID &copy_id);
+    void DeleteRequestOfUser(UserID reader_id);
+    void DeleteRequestOfCopy(const CopyID &copy_id);
+    void DeleteUser(UserID user_id);
 
     typedef std::unique_ptr<sql::PreparedStatement> Statement;
     std::unique_ptr<sql::Connection> connection_;

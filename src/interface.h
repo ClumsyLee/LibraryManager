@@ -33,13 +33,21 @@ class Interface
 
     virtual void ShowUser(Context *context);
     virtual void CreateUser(Context *context);
-    virtual void DeleteUser(Context *context);
+    virtual void RemoveUser(Context *context);
+
+    virtual void CreateBook(Context *context);
+    virtual void CreateCopy(Context *context);
 
     static Interface * Instance();
 
  protected:
     void ContinueOrMainMenu(Context *context);
     std::string GetUserName(Context *context);
+
+    bool GetExistISBN(const std::string &prompt, ISBN &isbn);
+    bool GetSpareISBN(const std::string &prompt, ISBN &isbn);
+    bool GetSpareCallNum(const std::string &prompt, CallNum &call_num);
+    bool GetSpareCopyID(const std::string &prompt, CopyID &copy_id);
 
  private:
     static void GetValidUser(UserID &user_id, User &user);
@@ -82,7 +90,7 @@ class AdminInterface : virtual public Interface
     virtual void MainMenu(Context *context);
     virtual void ShowUser(Context *context);
     virtual void CreateUser(Context *context);
-    virtual void DeleteUser(Context *context);
+    virtual void RemoveUser(Context *context);
 
 
     static AdminInterface * Instance();
