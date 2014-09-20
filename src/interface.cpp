@@ -398,7 +398,7 @@ void Interface::CreateBook(Context *context)
          << "\n作者: " << author
          << "\n出版社: " << imprint << "\n\n";
 
-    if (YesOrNo("是否要添加此书籍? "))
+    if (YesOrNo("是否要添加此书籍? (y/n):" ))
     {
         if (DatabaseProxy::Instance()->CreateBook(isbn, call_num, title, author,
                                                   imprint))
@@ -438,7 +438,7 @@ void Interface::CreateCopy(Context *context)
          << "ISBN: " << isbn << " (" << title << ")\n"
          << "条形码: " << copy_id << "\n\n";
 
-    if (YesOrNo("是否要添加此副本? "))
+    if (YesOrNo("是否要添加此副本? (y/n):" ))
     {
         if (DatabaseProxy::Instance()->CreateCopy(copy_id, isbn))
             cout << "添加成功\n";
@@ -448,6 +448,80 @@ void Interface::CreateCopy(Context *context)
 
     ContinueOrMainMenu(context);
 }
+
+void Interface::RemoveBook(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+    cout << " ========================== 删除书籍 ==========================\n";
+
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
+    ISBN isbn;
+    std::string title;
+    if (!GetExistISBN("ISBN: ", isbn, title))
+    {
+        context->set_state(&Interface::MainMenu);
+        return;
+    }
+    if (proxy->CopiesOfBook(isbn)->next())
+    {
+        cout << "该书籍仍有副本存在, 不能删除\n";
+    }
+    else
+    {
+        if (YesOrNo("是否要删除该书籍? (y/n):" ))
+        {
+            if (proxy->RemoveBook(isbn))
+                cout << "删除成功\n";
+            else
+                cout << "删除失败\n";
+        }
+    }
+
+    ContinueOrMainMenu(context);
+}
+
+void Interface::RemoveCopy(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+    cout << " ========================== 删除副本 ==========================\n";
+
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
+    CopyID copy_id = ReadLine("请输入副本条形码: ");
+    if (proxy->RemoveCopy(copy_id))
+        cout << "删除成功\n";
+    else
+        cout << "删除失败\n";
+
+    ContinueOrMainMenu(context);
+}
+
+void Interface::LostCopy(Context *context)
+{
+    using std::cout;
+    using std::endl;
+
+    ClearScreen();
+    cout << " ========================== 丢失副本 ==========================\n";
+
+    DatabaseProxy *proxy = DatabaseProxy::Instance();
+
+    CopyID copy_id = ReadLine("请输入副本条形码: ");
+    if (proxy->Lost(copy_id))
+        cout << "登记成功\n";
+    else
+        cout << "登记失败\n";
+
+    ContinueOrMainMenu(context);
+}
+
 
 Interface * Interface::Instance()
 {
@@ -647,7 +721,7 @@ void ReaderInterface::BorrowBook(Context *context)
     else  // able to borrow
     {
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要借出该副本吗? (y/n): "))
+        if (YesOrNo("确定要借出该副本吗? (y/n):" "))
         {
             if (DatabaseProxy::Instance()->BorrowCopy(context->user_id(),
                                                       copy_id))
@@ -691,7 +765,7 @@ void ReaderInterface::RequestBook(Context *context)
     else  // able to request
     {
         ShowCopyBasicInfo(copy_id);
-        if (YesOrNo("确定要预约该副本吗? (y/n): "))
+        if (YesOrNo("确定要预约该副本吗? (y/n):" "))
         {
             if (DatabaseProxy::Instance()->RequestCopy(context->user_id(),
                                                        copy_id))
@@ -850,19 +924,21 @@ void AdminInterface::MainMenu(Context *context)
 " =========================== 主菜单 ===========================\n"
 "欢迎你, 管理员 " << GetUserName(context) << "\n\n"
 "[e] 查询书籍\n"
-"[u] 查看用户       [n] 创建用户       [d] 删除用户\n"
-"[A] 添加书籍       [a] 添加副本\n"
+"[u] 查看用户       [+] 创建用户       [-] 删除用户\n"
+"[A] 添加书籍       [a] 添加副本       [D] 删除书籍       [d] 删除副本\n"
 "[p] 修改密码                                             [q] 退出\n";
 
-    int choice = GetChoice("eundAapq");
+    int choice = GetChoice("eu+-AaDdpq");
     switch (choice)
     {
         case 'e': context->set_state(&Interface::Query); break;
         case 'u': context->set_state(&Interface::ShowUser); break;
-        case 'n': context->set_state(&Interface::CreateUser); break;
-        case 'd': context->set_state(&Interface::RemoveUser); break;
+        case '+': context->set_state(&Interface::CreateUser); break;
+        case '-': context->set_state(&Interface::RemoveUser); break;
         case 'A': context->set_state(&Interface::CreateBook); break;
         case 'a': context->set_state(&Interface::CreateCopy); break;
+        case 'D': context->set_state(&Interface::RemoveBook); break;
+        case 'd': context->set_state(&Interface::RemoveCopy); break;
         case 'p': context->set_state(&Interface::ChangePassword); break;
         case 'q': context->set_state(&Interface::WelcomeScreen); break;
     }
@@ -962,9 +1038,11 @@ void AdminInterface::CreateUser(Context *context)
         ClearScreen();
         cout << " ================== 创建用户 -> 确认 ==================\n"
              << "用户类型: " << kUserTypeNames[static_cast<int>(type) - 1]
-             << "\n用户ID: " << id << endl;
+             << "\n用户ID: " << id
+             << "\n姓名: " << name
+             << endl;
 
-        if (YesOrNo("确认要创建此用户吗? "))
+        if (YesOrNo("确定要创建此用户吗? (y/n):" ))
         {
             if (DatabaseProxy::Instance()->CreateUser(type, id, name, password))
                 cout << "创建成功\n";
@@ -1009,7 +1087,7 @@ void AdminInterface::RemoveUser(Context *context)
          << "用户ID: " << id
          << "\n姓名: " << result->getString("name") << endl;
 
-    if (YesOrNo("确定要删除该用户吗? "))
+    if (YesOrNo("确定要删除该用户吗? (y/n):" ))
     {
         if (proxy->RemoveUser(id))
             cout << "删除成功\n";
@@ -1040,12 +1118,12 @@ void AdminReaderInterface::MainMenu(Context *context)
 "[编号] 查看对应书籍的详细信息\n"
 "[e] 查询书籍\n"
 "[b] 借书           [t] 还书           [r] 预约           [g] 预约取书\n"
-"[u] 查看用户       [n] 创建用户       [d] 删除用户\n"
-"[A] 添加书籍       [a] 添加副本\n"
+"[u] 查看用户       [+] 创建用户       [-] 删除用户\n"
+"[A] 添加书籍       [a] 添加副本       [D] 删除书籍       [d] 删除副本\n"
 "[p] 修改密码                                             [q] 退出\n";
 
     int choice;
-    if (GetChoice("ebtrgundAapq", choice_num, choice) == Choice::CHAR)
+    if (GetChoice("ebtrgu+-AaDdpq", choice_num, choice) == Choice::CHAR)
     {
         switch (choice)
         {
@@ -1055,10 +1133,12 @@ void AdminReaderInterface::MainMenu(Context *context)
             case 'r': context->set_state(&Interface::RequestBook); break;
             case 'g': context->set_state(&Interface::GetRequested); break;
             case 'u': context->set_state(&Interface::ShowUser); break;
-            case 'n': context->set_state(&Interface::CreateUser); break;
-            case 'd': context->set_state(&Interface::RemoveUser); break;
+            case '+': context->set_state(&Interface::CreateUser); break;
+            case '-': context->set_state(&Interface::RemoveUser); break;
             case 'A': context->set_state(&Interface::CreateBook); break;
             case 'a': context->set_state(&Interface::CreateCopy); break;
+            case 'D': context->set_state(&Interface::RemoveBook); break;
+            case 'd': context->set_state(&Interface::RemoveCopy); break;
             case 'p': context->set_state(&Interface::ChangePassword); break;
             case 'q': context->set_state(&Interface::WelcomeScreen); break;
         }

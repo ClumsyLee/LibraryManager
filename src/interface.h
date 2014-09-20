@@ -37,6 +37,10 @@ class Interface
 
     virtual void CreateBook(Context *context);
     virtual void CreateCopy(Context *context);
+    virtual void RemoveBook(Context *context);
+    virtual void RemoveCopy(Context *context);
+
+    virtual void LostCopy(Context *context);
 
     static Interface * Instance();
 

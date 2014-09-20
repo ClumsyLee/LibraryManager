@@ -374,24 +374,6 @@ bool DatabaseProxy::CreateUser(User type, UserID user_id,
     return true;
 }
 
-bool DatabaseProxy::RemoveUser(UserID user_id)
-{
-    if (!ReaderInfo(user_id)->next())
-    {
-        std::cerr << "不存在ID为 " << user_id << " 的用户\n";
-        return false;
-    }
-    if (QueryBorrowed(user_id)->next())
-    {
-        std::cerr << "该用户有未归还的书籍, 不能删除\n";
-        return false;
-    }
-
-    DeleteRequestOfUser(user_id);
-    DeleteUser(user_id);
-    return true;
-}
-
 bool DatabaseProxy::CreateBook(ISBN isbn, const CallNum &call_num,
                                const std::string &title,
                                const std::string &author,
@@ -427,6 +409,75 @@ bool DatabaseProxy::CreateCopy(const CopyID &copy_id, ISBN isbn)
     return true;
 }
 
+bool DatabaseProxy::RemoveUser(UserID user_id)
+{
+    if (!ReaderInfo(user_id)->next())
+    {
+        std::cerr << "不存在ID为 " << user_id << " 的用户\n";
+        return false;
+    }
+    if (QueryBorrowed(user_id)->next())
+    {
+        std::cerr << "该用户有未归还的书籍, 不能删除\n";
+        return false;
+    }
+
+    DeleteRequestOfUser(user_id);
+    DeleteUser(user_id);
+    return true;
+}
+
+bool DatabaseProxy::RemoveBook(ISBN isbn)
+{
+    if (!BookInfo(isbn)->next())
+    {
+        std::cerr << "不存在ISBN为 " << isbn << "的书籍\n";
+        return false;
+    }
+    auto copies = CopiesOfBook(isbn);
+    if (copies->next())
+    {
+        std::cerr << "ISBN为 " << isbn << " 的书籍仍有副本, 不能删除\n";
+        return false;
+    }
+
+    DeleteBook(isbn);
+    return true;
+}
+
+bool DatabaseProxy::RemoveCopy(const CopyID &copy_id)
+{
+    auto copy_info = CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        std::cerr << "不存在条形码为 " << copy_id << " 的副本\n";
+        return false;
+    }
+    if (copy_info->getString("status") == "LENT")
+    {
+        std::cerr << "条形码为 " << copy_id << " 的副本目前被借出, 不能删除\n";
+        return false;
+    }
+
+    DeleteRequest(copy_id);
+    DeleteCopy(copy_id);
+    return true;
+}
+
+bool DatabaseProxy::Lost(const CopyID &copy_id)
+{
+    auto copy_info = CopyInfo(copy_id);
+    if (!copy_info->next())
+    {
+        std::cerr << "不存在条形码为 " << copy_id << " 的副本\n";
+        return false;
+    }
+
+    DeleteBorrow(copy_id);
+    DeleteRequest(copy_id);
+    UpdateCopyStatus(copy_id, "LOST");
+    return true;
+}
 
 void DatabaseProxy::UpdateCopyStatus(const CopyID &copy_id,
                                      const std::string &status)
@@ -503,7 +554,7 @@ void DatabaseProxy::InsertBook(ISBN isbn, const CallNum &call_num,
 void DatabaseProxy::InsertCopy(const CopyID &copy_id, ISBN isbn)
 {
     static Statement insert_copy(connection_->prepareStatement(
-        "INSERT INTO Copy(id, isbn, status) VALUES (?, ?, ON_SHELF)"));
+        "INSERT INTO Copy(id, isbn, status) VALUES (?, ?, 'ON_SHELF')"));
 
     insert_copy->setString(1, copy_id);
     insert_copy->setUInt64(2, isbn);
@@ -540,7 +591,7 @@ void DatabaseProxy::DeleteRequestOfUser(UserID reader_id)
     delete_request->execute();
 }
 
-void DatabaseProxy::DeleteRequestOfCopy(const CopyID &copy_id)
+void DatabaseProxy::DeleteRequest(const CopyID &copy_id)
 {
     static Statement delete_request(connection_->prepareStatement(
         "DELETE FROM Request WHERE copy_id=?"));
@@ -557,6 +608,25 @@ void DatabaseProxy::DeleteUser(UserID user_id)
     delete_user->setUInt(1, user_id);
     delete_user->execute();
 }
+
+void DatabaseProxy::DeleteBook(ISBN isbn)
+{
+    static Statement delete_book(connection_->prepareStatement(
+        "DELETE FROM Book WHERE isbn=?"));
+
+    delete_book->setUInt64(1, isbn);
+    delete_book->execute();
+}
+
+void DatabaseProxy::DeleteCopy(const CopyID &copy_id)
+{
+    static Statement delete_copy(connection_->prepareStatement(
+        "DELETE FROM Copy WHERE id=?"));
+
+    delete_copy->setString(1, copy_id);
+    delete_copy->execute();
+}
+
 
 
 DatabaseProxy * DatabaseProxy::Instance()

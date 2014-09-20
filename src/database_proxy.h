@@ -61,11 +61,16 @@ class DatabaseProxy
 
     bool CreateUser(User type, UserID id, const std::string &name,
                     const std::string &password);
-    bool RemoveUser(UserID user_id);
     bool CreateBook(ISBN isbn, const CallNum &call_num,
                     const std::string &title,
                     const std::string &author, const std::string &imprint);
     bool CreateCopy(const CopyID &copy_id, ISBN isbn);
+
+    bool RemoveUser(UserID user_id);
+    bool RemoveBook(ISBN isbn);
+    bool RemoveCopy(const CopyID &copy_id);
+
+    bool Lost(const CopyID &copy_id);
 
     static DatabaseProxy * Instance();
 
@@ -83,8 +88,10 @@ class DatabaseProxy
     void DeleteBorrow(const CopyID &copy_id);
     void DeleteRequest(UserID reader_id, const CopyID &copy_id);
     void DeleteRequestOfUser(UserID reader_id);
-    void DeleteRequestOfCopy(const CopyID &copy_id);
+    void DeleteRequest(const CopyID &copy_id);
     void DeleteUser(UserID user_id);
+    void DeleteBook(ISBN isbn);
+    void DeleteCopy(const CopyID &copy_id);
 
     typedef std::unique_ptr<sql::PreparedStatement> Statement;
     std::unique_ptr<sql::Connection> connection_;
