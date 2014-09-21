@@ -117,6 +117,31 @@ class AdminReaderInterface: public AdminInterface, public ReaderInterface
     {
         AdminInterface::ShowCopiesOfBook(context);
     }
+    virtual void BorrowBook(Context *context)
+    {
+        ReaderInterface::BorrowBook(context);
+    }
+    virtual void RequestBook(Context *context)
+    {
+        ReaderInterface::RequestBook(context);
+    }
+    virtual void GetRequested(Context *context)
+    {
+        ReaderInterface::GetRequested(context);
+    }
+
+    virtual void ShowUser(Context *context)
+    {
+        AdminInterface::ShowUser(context);
+    }
+    virtual void CreateUser(Context *context)
+    {
+        AdminInterface::CreateUser(context);
+    }
+    virtual void RemoveUser(Context *context)
+    {
+        AdminInterface::RemoveUser(context);
+    }
 };
 
 }  // namespace library_manager
