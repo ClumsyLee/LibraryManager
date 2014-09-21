@@ -14,14 +14,44 @@ namespace library_manager {
 
 class Context;
 
-class Interface
+class InterfaceBase
+{
+ public:
+    InterfaceBase() = default;
+    virtual ~InterfaceBase() = default;
+
+    virtual void WelcomeScreen(Context *context) = 0;
+    virtual void Login(Context *context) = 0;
+
+    virtual void MainMenu(Context *context) = 0;
+    virtual void Query(Context *context) = 0;
+    virtual void ShowBook(Context *context) = 0;
+    virtual void BorrowBook(Context *context) = 0;
+    virtual void RequestBook(Context *context) = 0;
+    virtual void ReturnBook(Context *context) = 0;
+    virtual void GetRequested(Context *context) = 0;
+    virtual void ChangePassword(Context *context) = 0;
+
+    virtual void ShowUser(Context *context) = 0;
+    virtual void CreateUser(Context *context) = 0;
+    virtual void RemoveUser(Context *context) = 0;
+
+    virtual void CreateBook(Context *context) = 0;
+    virtual void CreateCopy(Context *context) = 0;
+    virtual void RemoveBook(Context *context) = 0;
+    virtual void RemoveCopy(Context *context) = 0;
+
+    virtual void LostCopy(Context *context) = 0;
+};
+
+class Interface : public InterfaceBase
 {
  public:
     Interface() = default;
     virtual ~Interface() = default;
 
-    void WelcomeScreen(Context *context);
-    void Login(Context *context);
+    virtual void WelcomeScreen(Context *context);
+    virtual void Login(Context *context);
     virtual void MainMenu(Context *context);
     virtual void Query(Context *context);
     virtual void ShowBook(Context *context);
