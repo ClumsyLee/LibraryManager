@@ -10,11 +10,16 @@
 
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 
-#ifndef USE_TERMIOS_FOR_PASSWORD_INPUT
-#define USE_TERMIOS_FOR_PASSWORD_INPUT
+#ifndef UNIX_LIKE_SYS
+#define UNIX_LIKE_SYS
 #endif
 
 #include <termios.h>
+
+#elif defined(_WIN32)
+
+#include <windows.h>
+
 #endif
 
 #include "utility.h"
@@ -27,7 +32,7 @@ void ClearScreen()
 {
 #if defined(_WIN32)
     std::system("cls");
-#elif !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+#elif defined(UNIX_LIKE_SYS)
     std::system("clear");
 #endif
 }
@@ -71,7 +76,7 @@ std::string ReadPassword(const std::string &prompt)
     std::cout << prompt;
     std::string line;
 
-#ifdef USE_TERMIOS_FOR_PASSWORD_INPUT
+#ifdef UNIX_LIKE_SYS
     termios old_flags;
     tcgetattr(STDIN_FILENO, &old_flags);
     termios new_flgs = old_flags;
@@ -82,8 +87,15 @@ std::string ReadPassword(const std::string &prompt)
     std::cout << std::endl;  // echo an endline
 
     tcsetattr(STDIN_FILENO, TCSANOW, &old_flags);
-#else
+#elif defined(_WIN32)
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode = 0;
+    GetConsoleMode(hStdin, &mode);
+    SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+
     std::getline(std::cin, line);
+    std::cout << std::endl;  // echo an endline
+    SetConsoleMode(hStdin, mode);
 #endif
 
     return line;
