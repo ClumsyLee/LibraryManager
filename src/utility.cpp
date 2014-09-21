@@ -2,9 +2,6 @@
 #include <string>
 #include <iostream>
 
-#include <readline/readline.h>
-#include <readline/history.h>
-
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -13,6 +10,9 @@
 #ifndef UNIX_LIKE_SYS
 #define UNIX_LIKE_SYS
 #endif
+
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include <termios.h>
 
@@ -39,16 +39,24 @@ void ClearScreen()
 
 std::string ReadLine(const std::string &prompt)
 {
+    std::string line;
+
+#ifdef UNIX_LIKE_SYS
     char *line_read = readline(prompt.c_str());
     if (!line_read)  // EOF
         throw ExitProgram(1);
 
-    std::string line(line_read);
+    line.assign(line_read);
 
     if (!boost::trim_copy(line).empty())
         add_history(line_read);  // if not empty, add the origin line
 
     std::free(line_read);
+#else
+    std::cout << prompt;
+    std::getline(std::cin, line);
+#endif
+
     return line;
 }
 
